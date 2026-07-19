@@ -10,11 +10,9 @@
     --gold:#e8b45e; --line:rgba(150,180,230,.22); --mline:rgba(232,180,94,.55);
   }
   *{box-sizing:border-box}
-  html,body{margin:0;font-family:"Segoe UI",system-ui,sans-serif;
-            color:var(--ink);background:var(--bg);overflow:hidden}
-  body{position:fixed;top:0;left:0;right:0;height:100vh;height:100dvh;height:var(--apph,100dvh);
-       overscroll-behavior:none;-webkit-overflow-scrolling:auto}
-  #app{display:flex;height:100%}
+  html,body{margin:0;height:100vh;height:100svh;font-family:"Segoe UI",system-ui,sans-serif;
+            color:var(--ink);background:var(--bg);overflow:hidden;overscroll-behavior:none}
+  #app{display:flex;height:100vh;height:100svh}
   #stage{flex:1;position:relative;overflow:hidden;
          background:radial-gradient(circle at 50% 45%, #14306a 0%, #0b1836 55%, #050a1c 100%)}
   #stars{position:absolute;inset:0;z-index:0;pointer-events:none}
@@ -209,22 +207,7 @@
   </div>
 </div>
 
-<script>
-/* mobilni: stvarna visina vidljivog dijela (bez tamnog pojasa iza trake preglednika) */
-(function(){
-  function setAppH(){
-    var h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight;
-    document.documentElement.style.setProperty("--apph", h+"px");
-  }
-  setAppH();
-  window.addEventListener("resize",setAppH);
-  window.addEventListener("orientationchange",setAppH);
-  if(window.visualViewport){
-    window.visualViewport.addEventListener("resize",setAppH);
-    window.visualViewport.addEventListener("scroll",setAppH);
-  }
-})();
-const SUPA_URL="https://hxydndikdcjbnmfdhvus.supabase.co";
+<script>const SUPA_URL="https://hxydndikdcjbnmfdhvus.supabase.co";
 const SUPA_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4eWRuZGlrZGNqYm5tZmRodnVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0NjQxMDEsImV4cCI6MjEwMDA0MDEwMX0.kYG-FfSIwQAsFPD57owyM2o5Ihot-TbBGl8tdoohW8o";
 const sb=window.supabase.createClient(SUPA_URL,SUPA_KEY);
 const loginBox=document.getElementById("login"), appBox=document.getElementById("app"),
