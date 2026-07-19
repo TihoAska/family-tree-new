@@ -1,0 +1,996 @@
+<!doctype html>
+<html lang="hr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Obiteljsko stablo</title>
+<style>
+  :root{
+    --bg:#0b1836; --bg2:#0f2350; --panel:#0a1430; --ink:#dbe4f5; --muted:#8ea3c8;
+    --gold:#e8b45e; --line:rgba(150,180,230,.22); --mline:rgba(232,180,94,.55);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:"Segoe UI",system-ui,sans-serif;
+            color:var(--ink);background:var(--bg);overflow:hidden}
+  #app{display:flex;height:100%}
+  #stage{flex:1;position:relative;overflow:hidden;
+         background:radial-gradient(circle at 50% 45%, #14306a 0%, #0b1836 55%, #050a1c 100%)}
+  #stars{position:absolute;inset:0;z-index:0;pointer-events:none}
+  svg{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;z-index:1;background:transparent}
+  svg.grabbing{cursor:grabbing}
+
+  .edge{stroke:var(--line);stroke-width:1.4;transition:stroke .3s ease,opacity .3s ease,stroke-width .3s ease}
+  .edge.marriage{stroke:var(--mline);stroke-width:2.2}
+  .edge.hi{stroke:#ffffff;stroke-width:2.6;filter:drop-shadow(0 0 4px rgba(255,255,255,.85))}
+  .edge.marriage.hi{stroke:#ffdb99;filter:drop-shadow(0 0 5px rgba(255,219,153,.9))}
+  /* fokus nakon klika: ostali zasjenjeni */
+  #root.dim .node{opacity:.15;transition:opacity .25s}
+  #root.dim .edge{opacity:.05;transition:opacity .25s}
+  #root.dim .node.keep{opacity:1}
+  #root.dim .edge.keep{opacity:.95}
+  #root.dim .node.lit{opacity:1}
+  #root.dim .edge.hi{opacity:1}
+  /* bojanje odnosa nakon klika */
+  .node.rel-spouse .body{stroke:#e8b45e;stroke-width:3}
+  .node.rel-parent .body{stroke:#5db4e0;stroke-width:3}
+  .node.rel-child  .body{stroke:#63d6a6;stroke-width:3}
+  .node.rel-sib    .body{stroke:#f0996b;stroke-width:3}
+  .edge.rel-spouse{stroke:#e8b45e;stroke-width:2.8;filter:drop-shadow(0 0 5px rgba(232,180,94,.9))}
+  .edge.rel-parent{stroke:#5db4e0;stroke-width:2.8;filter:drop-shadow(0 0 5px rgba(93,180,224,.9))}
+  .edge.rel-child {stroke:#63d6a6;stroke-width:2.8;filter:drop-shadow(0 0 5px rgba(99,214,166,.9))}
+  .siblink{stroke:#f0996b;stroke-width:2;stroke-dasharray:5 5;opacity:.9;
+           filter:drop-shadow(0 0 3px rgba(240,153,107,.7))}
+
+  .node{cursor:pointer}
+  .node .body{stroke:rgba(255,255,255,.30);stroke-width:1.3;transition:filter .3s ease}
+  .node .sheen{pointer-events:none}
+  .node .lbl{fill:var(--ink);font-size:12px;font-weight:600;text-anchor:middle;
+             paint-order:stroke;stroke:#081124;stroke-width:3px;pointer-events:none;transition:fill .3s ease}
+  .node .yr{fill:var(--muted);font-size:10px;text-anchor:middle;
+            paint-order:stroke;stroke:#081124;stroke-width:3px;pointer-events:none}
+  .node .body{filter:drop-shadow(0 0 8px rgba(165,200,255,.7)) drop-shadow(0 0 16px rgba(140,175,235,.4))}
+  .node.sun .body{fill:#ffcf5e !important;
+    filter:drop-shadow(0 0 18px rgba(255,193,70,.95)) drop-shadow(0 0 40px rgba(255,150,40,.6))}
+  .node:hover .body{filter:drop-shadow(0 0 10px #fff) drop-shadow(0 0 5px #fff)}
+  .node:hover .lbl{fill:#fff}
+  .node.sel .body{stroke:#fff;stroke-width:2.5}
+
+  #controls{position:absolute;left:14px;top:14px;display:flex;gap:6px;z-index:5}
+  #controls button{height:34px;min-width:34px;padding:0 10px;border:1px solid #33507f;
+        background:#12244d;border-radius:8px;font-size:14px;cursor:pointer;color:var(--ink)}
+  #controls button:hover{background:#1b356b}
+  #hint{position:absolute;right:14px;bottom:12px;font-size:11px;color:var(--muted);
+        background:#0b1836cc;padding:4px 8px;border-radius:6px;z-index:5}
+  #disclaimer{position:absolute;left:0;right:0;bottom:0;font-size:14px;text-align:center;
+        color:#ff6b6b;font-weight:600;font-style:italic;line-height:1.4;background:#0b1836dd;
+        padding:8px 14px;z-index:5}
+
+  #side{width:320px;background:var(--panel);border-left:1px solid #1c2f57;
+        display:flex;flex-direction:column;overflow:hidden}
+  #side header{padding:16px 18px 10px;border-bottom:1px solid #1c2f57}
+  #side header h1{margin:0;font-size:18px;color:var(--gold)}
+  #side header p{margin:4px 0 0;font-size:12px;color:var(--muted)}
+  #detail{padding:14px 18px;border-bottom:1px solid #1c2f57;min-height:110px}
+  #detail .dn{font-size:16px;font-weight:700;margin:0 0 2px}
+  #detail .dy{font-size:12.5px;color:var(--gold);margin:0 0 8px;font-weight:600}
+  #detail .di{font-size:13px;line-height:1.5;color:#c4d2ec;margin:0}
+  #detail .empty{color:var(--muted);font-style:italic;font-size:13px}
+  #rel{padding:12px 18px;border-bottom:1px solid #1c2f57}
+  #rel h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 8px}
+  #rel label{font-size:11px;color:var(--muted);display:block;margin-top:4px}
+  #findbar{padding:12px 18px 6px}
+  .combo{position:relative}
+  .combo-in{width:100%;margin:3px 0 4px;background:#12244d;color:var(--ink);
+        border:1px solid #33507f;border-radius:6px;padding:5px 6px;font-size:12.5px}
+  .combo-list{position:absolute;top:100%;left:0;right:0;z-index:20;max-height:210px;overflow:auto;
+        background:#0e1e42;border:1px solid #33507f;border-radius:6px;margin-top:2px;display:none;
+        box-shadow:0 6px 18px #0008}
+  .combo-list.open{display:block}
+  .combo-item{padding:5px 8px;font-size:12.5px;cursor:pointer;border-bottom:1px solid #16264a}
+  .combo-item:hover{background:#1b356b}
+  .combo-item .hint{display:block;font-size:10.5px;color:var(--muted)}
+  #relGo{margin-top:6px;background:#1b356b;color:var(--ink);border:1px solid #33507f;
+        border-radius:6px;padding:6px 14px;font-size:12.5px;cursor:pointer}
+  #relGo:hover{background:#254a8f}
+  #relOut{margin-top:10px;font-size:12.5px;line-height:1.5;color:#dbe4f5}
+  #relOut .relpath{color:var(--muted);font-size:11.5px}
+  #notes{padding:14px 18px;overflow:auto;flex:1}
+  #notes h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 8px}
+  #notes ul{margin:0 0 14px;padding-left:18px}
+  #notes li{font-size:12px;line-height:1.5;margin-bottom:6px;color:#c4d2ec}
+  .warn{background:#2a2412;border:1px solid #5a4a1e;border-radius:8px;padding:8px 10px;
+        font-size:12px;line-height:1.45;color:#e8cf9a;margin-bottom:14px}
+  .swatch{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  @media(max-width:760px){#app{flex-direction:column}#side{width:100%;height:44%;
+        border-left:0;border-top:1px solid #1c2f57}#stage{height:56%}}
+
+  #login{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;overflow:hidden;
+    background:radial-gradient(circle at 50% 40%,#14306a,#0b1836 60%,#050a1c)}
+  #loginBg{position:absolute;inset:0;z-index:0}
+  #login form{position:relative;z-index:1;background:#0e1e42ee;border:1px solid #33507f;border-radius:12px;padding:24px 22px;width:260px;
+    display:flex;flex-direction:column;gap:10px;box-shadow:0 12px 44px #000a;text-align:center}
+  #login input{background:#12244d;color:#dbe4f5;border:1px solid #3a5896;border-radius:8px;padding:11px 12px;font-size:15px;outline:none;text-align:center}
+  #login input:focus{border-color:#f0c96b;box-shadow:0 0 0 2px rgba(240,201,94,.25)}
+  #login button{background:#1b356b;color:#dbe4f5;border:1px solid #3a5896;border-radius:8px;padding:10px;font-size:15px;font-weight:600;cursor:pointer}
+  #login button:hover{background:#254a8f}
+  #loginMsg{font-size:12px;color:#ff8f8f}
+  #loginMsg:empty{display:none}
+  #logout{margin:8px 18px 14px;background:#2a1520;color:#ff9a9a;border:1px solid #5a2e3e;
+    border-radius:8px;padding:9px;font-size:13px;cursor:pointer}
+  #logout:hover{background:#3a1c2a}
+</style>
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div id="login"><canvas id="loginBg"></canvas><form id="loginForm">
+  <input id="userIn" type="email" placeholder="Email" autocomplete="username">
+  <input id="pw" type="password" placeholder="Lozinka" autocomplete="current-password">
+  <button type="submit">Login</button>
+  <div id="loginMsg"></div>
+</form></div>
+<div id="app" style="display:none">
+  <div id="stage">
+    <canvas id="stars"></canvas>
+    <div id="controls">
+      <button id="toggle3d" title="Prebaci 2D / 3D">3D</button>
+      <button id="zin" title="Približi">+</button>
+      <button id="zout" title="Udalji">−</button>
+      <button id="zreset" title="Namjesti pogled">⟲</button>
+      <button id="exportpos" title="Kopiraj trenutni raspored (za ugradnju u datoteku)">izvoz</button>
+    </div>
+    <div id="disclaimer">Stablo je napravljeno onako kako su mi ljudi govorili. Ako mislite da se neke veze ne slažu, slobodno predložite promjene. Ako želite da se vaše ili nečije ime ukloni, slobodno me kontaktirajte.</div>
+    <svg id="svg"><g id="root"><g id="edges"></g><g id="siblinks"></g><g id="nodes"></g></g></svg>
+  </div>
+  <div id="side">
+    <div id="findbar">
+      <div class="combo"><input id="findIn" class="combo-in" placeholder="🔍 Traži osobu…" autocomplete="off"><div id="findList" class="combo-list"></div></div>
+    </div>
+    <div id="detail"><p class="empty">Traži ili klikni na čvor da vidiš podatke o osobi.</p></div>
+    <div id="rel">
+      <h2>Provjeri povezanost</h2>
+      <label>Osoba 1</label>
+      <div class="combo"><input id="relA" class="combo-in" placeholder="Upiši ime…" autocomplete="off"><div id="relAList" class="combo-list"></div></div>
+      <label>Osoba 2</label>
+      <div class="combo"><input id="relB" class="combo-in" placeholder="Upiši ime…" autocomplete="off"><div id="relBList" class="combo-list"></div></div>
+      <button id="relGo">Provjeri</button>
+      <div id="relOut"></div>
+    </div>
+    <div id="notes"></div>
+    <button id="logout">Odjava</button>
+  </div>
+</div>
+
+<script>const SUPA_URL="https://hxydndikdcjbnmfdhvus.supabase.co";
+const SUPA_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4eWRuZGlrZGNqYm5tZmRodnVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0NjQxMDEsImV4cCI6MjEwMDA0MDEwMX0.kYG-FfSIwQAsFPD57owyM2o5Ihot-TbBGl8tdoohW8o";
+const sb=window.supabase.createClient(SUPA_URL,SUPA_KEY);
+const loginBox=document.getElementById("login"), appBox=document.getElementById("app"),
+      userIn=document.getElementById("userIn"), pwIn=document.getElementById("pw"),
+      loginMsg=document.getElementById("loginMsg"), loginForm=document.getElementById("loginForm");
+let started=false;
+async function fetchData(){ const {data,error}=await sb.from("tree").select("data").eq("id",1).single(); if(error) throw error; return data.data; }
+async function loadAndStart(){
+  try{
+    const d=await fetchData();
+    const {data:{user}}=await sb.auth.getUser();
+    const meta = user ? (user.app_metadata||{}) : {};
+    const isAdmin = !!(meta.admin===true || meta.role==="admin");
+    loginBox.style.display="none"; appBox.style.display="flex";
+    if(!started){ started=true; startApp(d); }
+    const exp=document.getElementById("exportpos"); if(exp) exp.style.display = isAdmin ? "" : "none";
+  }catch(e){ loginMsg.textContent="Greška pri dohvatu podataka. Osvježi stranicu."; console.error(e); }
+}
+loginForm.addEventListener("submit", async e=>{
+  e.preventDefault(); loginMsg.textContent="Prijava…";
+  const email=(userIn.value||"").trim().toLowerCase();
+  const {error}=await sb.auth.signInWithPassword({email, password:pwIn.value});
+  if(error){ loginMsg.textContent="Kriv email ili lozinka."; return; }
+  loadAndStart();
+});
+sb.auth.getSession().then(({data})=>{ if(data.session) loadAndStart(); });
+const logoutBtn=document.getElementById("logout");
+if(logoutBtn) logoutBtn.addEventListener("click", async ()=>{ await sb.auth.signOut(); location.reload(); });
+
+/* ---- zvijezde iza logina (bez sunčevog sustava) ---- */
+(function(){
+  const cv=document.getElementById("loginBg"); if(!cv) return;
+  const ctx=cv.getContext("2d");
+  const stars=[];
+  for(let i=0;i<280;i++) stars.push({x:Math.random(),y:Math.random(),
+    size:Math.random()*Math.random()*1.8+0.3, tw:Math.random()*6.2832, tws:0.6+Math.random()*1.2});
+  function frame(t){
+    if(!cv.isConnected || document.getElementById("login").style.display==="none") return;
+    cv.width=innerWidth; cv.height=innerHeight;
+    const w=cv.width,h=cv.height;
+    ctx.clearRect(0,0,w,h);
+    for(const s of stars){ ctx.globalAlpha=0.4+0.45*Math.sin(t*0.001*s.tws+s.tw);
+      ctx.beginPath(); ctx.arc(s.x*w,s.y*h,s.size,0,6.2832); ctx.fillStyle= s.size>1.2?"#eaf1ff":"#bcd0ff"; ctx.fill(); }
+    ctx.globalAlpha=1;
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+
+async function startApp(DATA){
+  const persons=DATA.persons, marriages=DATA.marriages, parents=DATA.parents;
+
+const SVGNS="http://www.w3.org/2000/svg";
+const svg=document.getElementById("svg");
+const rootG=document.getElementById("root");
+const edgesG=document.getElementById("edges");
+const nodesG=document.getElementById("nodes");
+const el=(t,a,txt)=>{const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;return e;};
+
+// --- build nodes & edges ---
+const ids=Object.keys(persons);
+const nodes=ids.map((id,i)=>({id,i,x:0,y:0,dx:0,dy:0,gen:0,fixed:false,r:20}));
+const nodeById={}; nodes.forEach(n=>nodeById[n.id]=n);
+
+const edges=[];
+marriages.forEach(([a,b])=>{ if(nodeById[a]&&nodeById[b]) edges.push({s:nodeById[a],t:nodeById[b],type:"m"}); });
+parents.forEach(([a,b])=>{ if(nodeById[a]&&nodeById[b]) edges.push({s:nodeById[a],t:nodeById[b],type:"p"}); });
+
+// --- generacije za RASPORED (prstenove): preci = 0, potomci veći broj; brak izjednačava ---
+function computeGen(){
+  nodes.forEach(n=>n.gen=0);
+  for(let pass=0; pass<nodes.length+2; pass++){
+    let ch=false;
+    for(const [pa,cd] of parents){ const P=nodeById[pa],C=nodeById[cd];
+      if(P&&C&&C.gen<P.gen+1){C.gen=P.gen+1;ch=true;} }
+    for(const [a,b] of marriages){ const A=nodeById[a],B=nodeById[b];
+      if(A&&B){const g=Math.max(A.gen,B.gen); if(A.gen!==g){A.gen=g;ch=true;} if(B.gen!==g){B.gen=g;ch=true;}} }
+    if(!ch) break;
+  }
+}
+computeGen();
+const maxGen=Math.max(...nodes.map(n=>n.gen));
+
+// --- STAROST za VELIČINU (neovisno o rasporedu): 0 = najmlađi, veći = stariji ---
+// sidreno na središnji par (Ivka+Jure): roditelj +1, dijete -1, supružnik ista.
+function computeAge(){
+  const par={}, chi={}, spo={};
+  nodes.forEach(n=>{par[n.id]=[];chi[n.id]=[];spo[n.id]=[];});
+  parents.forEach(([p,c])=>{ if(nodeById[p]&&nodeById[c]){chi[p].push(c); par[c].push(p);} });
+  marriages.forEach(([a,b])=>{ if(nodeById[a]&&nodeById[b]){spo[a].push(b); spo[b].push(a);} });
+  const raw={}, q=[];
+  ["baka_ivka","dida_jure"].forEach(id=>{ if(nodeById[id]){raw[id]=0; q.push(id);} });
+  while(q.length){ const u=q.shift(), g=raw[u];
+    par[u].forEach(p=>{ if(raw[p]===undefined){raw[p]=g+1; q.push(p);} });
+    chi[u].forEach(c=>{ if(raw[c]===undefined){raw[c]=g-1; q.push(c);} });
+    spo[u].forEach(s=>{ if(raw[s]===undefined){raw[s]=g;   q.push(s);} });
+  }
+  nodes.forEach(n=>{ if(raw[n.id]===undefined) raw[n.id]=0; });
+  const minRaw=Math.min(...nodes.map(n=>raw[n.id]));
+  nodes.forEach(n=>{ n.age = raw[n.id]-minRaw; });   // 0 = najmlađi, veći = stariji
+}
+computeAge();
+const maxAge=Math.max(...nodes.map(n=>n.age));
+
+// --- Sunce = najstariji predak (gen 0) s najviše potomaka ---
+// (ručno možeš postaviti npr. SUN_ID="pile_d" ako želiš drugo Sunce)
+let SUN_ID=null;
+function descCount(startId){
+  const seen=new Set(), st=[startId];
+  while(st.length){ const c=st.pop();
+    for(const [pa,cd] of parents) if(pa===c && !seen.has(cd)){seen.add(cd);st.push(cd);} }
+  return seen.size;
+}
+if(!SUN_ID){ let best=-1;
+  nodes.filter(n=>n.gen===0).forEach(n=>{ const d=descCount(n.id); if(d>best){best=d;SUN_ID=n.id;} }); }
+const sun=nodeById[SUN_ID]; sun.fixed=true; sun.gen=0;
+
+// --- veličine: stariji = veći, mlađi = sve manji ---
+// veličina ovisi o STAROSTI: najstariji = najveći planet (bez obzira na položaj)
+const R_MAX=32, R_MIN=8.5;
+nodes.forEach(n=>{ n.r = maxAge ? R_MIN+(R_MAX-R_MIN)*(n.age/maxAge) : R_MAX; });
+
+// --- boje: braća/sestre iste boje; roditelji, djeca (i djedovi) uvijek različite ---
+const parentsOfNode={};
+parents.forEach(([p,c])=>{ (parentsOfNode[c]=parentsOfNode[c]||[]).push(p); });
+// grupa = skup djece s istim roditeljima; osobe bez roditelja su vlastita grupa
+const groupKey=id=>{ const ps=parentsOfNode[id]; return ps&&ps.length? ps.slice().sort().join("+") : "root:"+id; };
+const groups={};
+nodes.forEach(n=>{ const k=groupKey(n.id); (groups[k]=groups[k]||{key:k,members:[]}).members.push(n); });
+// paleta jasno različitih boja (indeks 0 = zlatna, rezervirana za Sunce)
+// dvobojanje grafa roditelj→dijete (2-coloring): dijete je UVIJEK suprotna "traka" od svakog roditelja
+const pcAdj={}; nodes.forEach(n=>pcAdj[n.id]=[]);
+parents.forEach(([p,c])=>{ pcAdj[p].push(c); pcAdj[c].push(p); });
+const bcol={};
+(function twoColor(){
+  const run=start=>{ bcol[start]=0; const q=[start];
+    while(q.length){ const u=q.shift();
+      for(const v of pcAdj[u]) if(bcol[v]===undefined){ bcol[v]=bcol[u]^1; q.push(v); } } };
+  run(SUN_ID);
+  nodes.forEach(n=>{ if(bcol[n.id]===undefined) run(n.id); });
+})();
+// dvije SVIJETLE trake: topla (žute/breskva) i hladna (plave/ljubičaste)
+// -> roditelj i dijete uvijek prelaze topla<->hladna, ali sve ostaje svijetlo (bez tamnih, crvene, zelene)
+const BAND_WARM=["#f4dc86","#f4c99a","#ecd2a2","#f6e2b4","#f0cf8f","#f3d6b2"];
+const BAND_COOL=["#8fc4ee","#c3a6ec","#a9cdee","#bcaae6","#9ad6ea","#b0bcee"];
+const groupColor={};
+const bc=[0,0];
+Object.values(groups)
+  .sort((a,b)=>Math.min(...a.members.map(m=>m.gen))-Math.min(...b.members.map(m=>m.gen)))
+  .forEach(g=>{
+    if(g.key===groupKey(SUN_ID)){ groupColor[g.key]="#ffcf5e"; return; }   // Sunce zlatno
+    const parity=bcol[g.members[0].id];
+    const band=parity? BAND_COOL : BAND_WARM;
+    groupColor[g.key]=band[ bc[parity]++ % band.length ];
+  });
+const colourFor=id=> groupColor[groupKey(id)] || "#cfd6e0";
+
+const RING=162;   // razmak između prstenova generacija
+// --- parovi: partneri se grupiraju u jedan "klaster" (planet do planeta) ---
+const spouseOf={};
+marriages.forEach(([a,b])=>{ if(nodeById[a]&&nodeById[b] && spouseOf[a]===undefined && spouseOf[b]===undefined){ spouseOf[a]=b; spouseOf[b]=a; } });
+const clusters=[]; const clusterOf={};
+nodes.forEach(n=>{
+  if(clusterOf[n.id]!==undefined) return;
+  const sp=spouseOf[n.id];
+  if(sp!==undefined && clusterOf[sp]===undefined){
+    clusterOf[n.id]=clusters.length; clusterOf[sp]=clusters.length;
+    clusters.push({members:[n,nodeById[sp]], gen:n.gen, x:0,y:0,dx:0,dy:0, fixed:false});
+  } else {
+    clusterOf[n.id]=clusters.length;
+    clusters.push({members:[n], gen:n.gen, x:0,y:0,dx:0,dy:0, fixed:false});
+  }
+});
+const sunCluster=clusters[clusterOf[SUN_ID]]; sunCluster.fixed=true;
+// bridovi između klastera (roditelj → dijete), bez duplikata
+const cedges=[]; const _seenE=new Set();
+parents.forEach(([p,c])=>{
+  const cp=clusterOf[p], cc=clusterOf[c];
+  if(cp===undefined||cc===undefined||cp===cc) return;
+  const k=cp<cc?cp+"_"+cc:cc+"_"+cp; if(_seenE.has(k)) return; _seenE.add(k);
+  cedges.push({s:clusters[cp], t:clusters[cc], len:RING});
+});
+// dodatni supružnici (nisu u istom klasteru, npr. Pejine druge žene) — kratka veza da stoje blizu partnera
+marriages.forEach(([a,b])=>{
+  const cp=clusterOf[a], cc=clusterOf[b];
+  if(cp===undefined||cc===undefined||cp===cc) return;
+  const k="m"+(cp<cc?cp+"_"+cc:cc+"_"+cp); if(_seenE.has(k)) return; _seenE.add(k);
+  cedges.push({s:clusters[cp], t:clusters[cc], len:88});
+});
+
+// --- radijalni raspored: prsten = generacija, Sunce u sredini ---
+function seed(){
+  const byGen={}; clusters.forEach(c=>{(byGen[c.gen]=byGen[c.gen]||[]).push(c);});
+  Object.keys(byGen).forEach(gk=>{
+    const g=+gk, arr=byGen[gk];
+    arr.forEach((c,i)=>{
+      if(c===sunCluster){ c.x=0;c.y=0; return; }
+      const ang=(i/arr.length)*Math.PI*2 + g*0.7;
+      const r=(g===0?100:g*RING);
+      c.x=Math.cos(ang)*r; c.y=Math.sin(ang)*r;
+    });
+  });
+}
+// partnere stavi jedan uz drugog, okomito na zraku (tangencijalno)
+function placeMembers(){
+  clusters.forEach(c=>{
+    if(c.members.length===1){ const n=c.members[0]; n.x=c.x; n.y=c.y; return; }
+    const [A,B]=c.members;
+    let rr=Math.hypot(c.x,c.y)||1, ux=c.x/rr, uy=c.y/rr, tx=-uy, ty=ux;
+    const off=(A.r+B.r)/2+9;
+    A.x=c.x+tx*off; A.y=c.y+ty*off;
+    B.x=c.x-tx*off; B.y=c.y-ty*off;
+  });
+}
+function layout(){
+  seed();
+  const K=138; let temp=360; const cool=0.966, steps=340, kR=0.11;
+  for(let s=0;s<steps;s++){
+    clusters.forEach(c=>{c.dx=0;c.dy=0;});
+    for(let i=0;i<clusters.length;i++){
+      for(let j=i+1;j<clusters.length;j++){
+        const a=clusters[i],b=clusters[j];
+        let dx=a.x-b.x, dy=a.y-b.y, d=Math.hypot(dx,dy)||0.5;
+        const f=(K*K)/d, ux=dx/d, uy=dy/d;
+        a.dx+=ux*f; a.dy+=uy*f; b.dx-=ux*f; b.dy-=uy*f;
+      }
+    }
+    for(const e of cedges){
+      const a=e.s,b=e.t;
+      let dx=a.x-b.x, dy=a.y-b.y, d=Math.hypot(dx,dy)||0.5;
+      const f=(d*d)/e.len, ux=dx/d, uy=dy/d;
+      a.dx-=ux*f; a.dy-=uy*f; b.dx+=ux*f; b.dy+=uy*f;
+    }
+    for(const c of clusters){ if(c===sunCluster) continue;
+      const r=Math.hypot(c.x,c.y)||0.5, tgt=(c.gen===0?100:c.gen*RING), f=kR*(tgt-r);
+      c.dx+=c.x/r*f; c.dy+=c.y/r*f;
+    }
+    for(const c of clusters){
+      if(c.fixed) continue;
+      let d=Math.hypot(c.dx,c.dy)||0.01, m=Math.min(d,temp);
+      c.x+=c.dx/d*m; c.y+=c.dy/d*m;
+    }
+    temp*=cool;
+  }
+  placeMembers();
+}
+
+// --- render ---
+let selected=null;
+const other=(e,n)=>e.s===n?e.t:e.s;
+
+function hoverOn(n){
+  n.g.classList.add("lit");
+  n.edges.forEach(e=>{ e.el.classList.add("hi"); other(e,n).g.classList.add("lit"); });
+}
+function hoverOff(n){
+  if(selected && (n.id===selected || n.edges.some(e=>other(e,n).id===selected))){
+    // ostavi netaknuto ako je dio trenutnog fokusa
+  }
+  document.querySelectorAll(".edge.hi").forEach(el=>{ if(!el.classList.contains("keep")) el.classList.remove("hi"); });
+  document.querySelectorAll(".node.lit").forEach(el=>{ if(!el.classList.contains("keep")) el.classList.remove("lit"); });
+}
+
+const sibG=document.getElementById("siblinks");
+let sibLinks=[];
+function clearMarks(){
+  ["keep","sel","hi","lit","rel-spouse","rel-parent","rel-child","rel-sib"].forEach(c=>
+    document.querySelectorAll("."+c).forEach(e=>e.classList.remove(c)));
+  sibG.innerHTML=""; sibLinks=[];
+}
+function refreshSib(){
+  sibLinks.forEach(L=>{ L.el.setAttribute("x1",L.a.x);L.el.setAttribute("y1",L.a.y);
+                        L.el.setAttribute("x2",L.b.x);L.el.setAttribute("y2",L.b.y); });
+}
+function clearSelection(){
+  selected=null;
+  rootG.classList.remove("dim");
+  clearMarks();
+  document.getElementById("detail").innerHTML='<p class="empty">Klikni na čvor da vidiš podatke o osobi.</p>';
+}
+
+function fillDetail(id){
+  const p=persons[id]; if(!p) return;
+  const d=document.getElementById("detail");
+  let years=""; if(p.born) years+="* "+p.born; if(p.died) years+=(years?"   ":"")+"† "+p.died;
+  d.innerHTML='<p class="dn"></p><p class="dy"></p><p class="di"></p>';
+  d.querySelector(".dn").textContent=p.n;
+  d.querySelector(".dy").textContent=years||"godine nepoznate";
+  d.querySelector(".di").textContent=p.info||"—";
+}
+function showPerson(id){
+  const p=persons[id]; if(!p) return;
+  selected=id;
+  const n=nodeById[id];
+  clearMarks();
+  rootG.classList.add("dim");
+  n.g.classList.add("sel","keep");
+  // razvrstaj susjede po tipu odnosa
+  const parentsOf=[], childrenOf=[], spousesOf=[];
+  n.edges.forEach(e=>{
+    const o=other(e,n);
+    if(e.type==="m"){ e.el.classList.add("rel-spouse","keep"); o.g.classList.add("rel-spouse","keep"); spousesOf.push(o); }
+    else if(e.s===n){ e.el.classList.add("rel-child","keep");  o.g.classList.add("rel-child","keep");  childrenOf.push(o); }
+    else            { e.el.classList.add("rel-parent","keep"); o.g.classList.add("rel-parent","keep"); parentsOf.push(o); }
+  });
+  // braća/sestre = dijele istog roditelja (bez izravnog brida → crtamo isprekidano)
+  const seen=new Set([n, ...childrenOf, ...spousesOf]);
+  parentsOf.forEach(par=>par.edges.forEach(e=>{
+    if(e.type==="p" && e.s===par){
+      const c=e.t;
+      if(!seen.has(c)){ seen.add(c);
+        c.g.classList.add("rel-sib","keep");
+        const ln=el("line",{class:"siblink"}); sibG.appendChild(ln);
+        sibLinks.push({a:n,b:c,el:ln});
+      }
+    }
+  }));
+  refreshSib();
+  const d=document.getElementById("detail");
+  let years=""; if(p.born) years+="* "+p.born; if(p.died) years+=(years?"   ":"")+"† "+p.died;
+  d.innerHTML='<p class="dn"></p><p class="dy"></p><p class="di"></p>';
+  d.querySelector(".dn").textContent=p.n;
+  d.querySelector(".dy").textContent=years||"godine nepoznate";
+  d.querySelector(".di").textContent=p.info||"—";
+}
+
+function build(){
+  edgesG.innerHTML=""; nodesG.innerHTML="";
+  edges.forEach(e=>{ e.el=el("line",{class:"edge"+(e.type==="m"?" marriage":"")}); edgesG.appendChild(e.el); });
+  nodes.forEach(n=>{
+    const p=persons[n.id];
+    const g=el("g",{class:"node"+(n===sun?" sun":"")});
+    g.appendChild(el("circle",{class:"body",r:n.r,fill:colourFor(n.id)}));
+    g.appendChild(el("circle",{class:"sheen",r:n.r*0.42,cx:-n.r*0.32,cy:-n.r*0.32,
+                               fill:"#ffffff","fill-opacity":0.22}));
+    g.appendChild(el("text",{class:"lbl",y:n.r+15},p.n));
+    const yline = p.born ? (p.died? p.born+"–"+p.died : "* "+p.born) : (p.died? "† "+p.died : "");
+    if(yline) g.appendChild(el("text",{class:"yr",y:n.r+29},yline));
+    g.addEventListener("mousedown",ev=>startNodeDrag(ev,n));
+    g.addEventListener("click",ev=>{ if(!draggedMoved) showPerson(n.id); });
+    g.addEventListener("mouseenter",()=>hoverOn(n));
+    g.addEventListener("mouseleave",()=>hoverOff(n));
+    n.g=g; nodesG.appendChild(g);
+  });
+  nodes.forEach(n=>n.edges=[]);
+  edges.forEach(e=>{ e.s.edges.push(e); e.t.edges.push(e); });
+}
+function refresh(){
+  nodes.forEach(n=>n.g.setAttribute("transform",`translate(${n.x} ${n.y})`));
+  edges.forEach(e=>{ e.el.setAttribute("x1",e.s.x);e.el.setAttribute("y1",e.s.y);
+                     e.el.setAttribute("x2",e.t.x);e.el.setAttribute("y2",e.t.y); });
+  refreshSib();
+}
+
+// --- notes panel ---
+document.getElementById("notes").innerHTML=`
+  <h2>Što znače linije</h2>
+  <ul>
+    <li><b>Zlatni brid</b> = brak. <b>Tanki brid</b> = veza roditelj → dijete.</li>
+    <li><b>Braća i sestre</b> nemaju izravan brid — prepoznaju se po istom roditelju. Klikni osobu da ih se posebno istakne.</li>
+    <li><b>*</b> godina rođenja, <b>†</b> godina smrti.</li>
+  </ul>
+  <h2>Boje odnosa (kad klikneš čvor)</h2>
+  <ul style="list-style:none;padding-left:0">
+    <li><span class="swatch" style="background:#e8b45e"></span>supružnik (brak)</li>
+    <li><span class="swatch" style="background:#5db4e0"></span>roditelji</li>
+    <li><span class="swatch" style="background:#63d6a6"></span>djeca</li>
+    <li><span class="swatch" style="background:#f0996b"></span>braća / sestre <span style="color:var(--muted)">(isprekidana linija)</span></li>
+  </ul>`;
+
+/* ---- pan / zoom / drag ---- */
+let view={tx:0,ty:0,s:1};
+const apply=()=>rootG.setAttribute("transform",`translate(${view.tx},${view.ty}) scale(${view.s})`);
+function fit(){
+  const xs=nodes.map(n=>n.x), ys=nodes.map(n=>n.y);
+  const minX=Math.min(...xs)-60,maxX=Math.max(...xs)+60,minY=Math.min(...ys)-60,maxY=Math.max(...ys)+60;
+  const w=maxX-minX,h=maxY-minY,r=svg.getBoundingClientRect();
+  view.s=Math.min(r.width/w, r.height/h, 1.4)*0.94;
+  view.tx=r.width/2-((minX+maxX)/2)*view.s;
+  view.ty=r.height/2-((minY+maxY)/2)*view.s;
+  apply();
+}
+
+let panning=false,panMoved=false,psx,psy;
+svg.addEventListener("mousedown",e=>{ if(e.target.closest(".node"))return;
+  panning=true;panMoved=false;psx=e.clientX-view.tx;psy=e.clientY-view.ty;svg.classList.add("grabbing"); });
+svg.addEventListener("click",e=>{ if(!e.target.closest(".node") && !panMoved && selected) clearSelection(); });
+let dragNode=null,draggedMoved=false,goffx,goffy;
+function startNodeDrag(ev,n){ ev.stopPropagation(); dragNode=n; draggedMoved=false;
+  const gx=(ev.clientX-view.tx)/view.s, gy=(ev.clientY-view.ty)/view.s;
+  goffx=gx-n.x; goffy=gy-n.y; }
+window.addEventListener("mousemove",e=>{
+  if(dragNode){ draggedMoved=true;
+    dragNode.x=(e.clientX-view.tx)/view.s-goffx;
+    dragNode.y=(e.clientY-view.ty)/view.s-goffy; refresh(); return; }
+  if(panning){ panMoved=true; view.tx=e.clientX-psx; view.ty=e.clientY-psy; apply(); }
+});
+window.addEventListener("mouseup",()=>{ panning=false;dragNode=null;svg.classList.remove("grabbing"); });
+svg.addEventListener("wheel",e=>{
+  e.preventDefault();
+  const r=svg.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+  const f=e.deltaY<0?1.12:1/1.12, ns=Math.min(3.5,Math.max(0.15,view.s*f));
+  view.tx=mx-(mx-view.tx)*(ns/view.s); view.ty=my-(my-view.ty)*(ns/view.s);
+  view.s=ns; apply();
+},{passive:false});
+document.getElementById("zin").onclick=()=>{view.s=Math.min(3.5,view.s*1.15);apply();};
+document.getElementById("zout").onclick=()=>{view.s=Math.max(0.15,view.s/1.15);apply();};
+document.getElementById("zreset").onclick=fit;
+// „presloži" uklonjen — raspored je zaključan na DEFAULT_POS i nikad se ne mijenja automatski
+window.addEventListener("resize",fit);
+
+/* ---- zvjezdano nebo (svemir koji se polako vrti) ---- */
+const stage=document.getElementById("stage");
+const starCanvas=document.getElementById("stars");
+const sctx=starCanvas.getContext("2d");
+let stars=[], rot=0; const MAXW=4200;   // zvijezde žive u "svemirskim" (world) koordinatama oko Sunca
+function initStars(){
+  starCanvas.width=stage.clientWidth; starCanvas.height=stage.clientHeight;
+  const count=Math.min(18000, Math.round(Math.PI*MAXW*MAXW/1900));
+  stars=[];
+  for(let i=0;i<count;i++){
+    stars.push({
+      ang:Math.random()*Math.PI*2,
+      dist:Math.sqrt(Math.random())*MAXW,
+      size:Math.random()*Math.random()*1.7+0.25,   // većina sitne, poneka veća
+      base:Math.random()*0.55+0.35,
+      tw:Math.random()*Math.PI*2,
+      tws:0.6+Math.random()*1.2
+    });
+  }
+}
+let shooters=[], lastSpawn=0, nextGap=1800, lastT=0;
+function spawnShooter(){
+  const w=starCanvas.width,h=starCanvas.height;
+  const ang=Math.PI*(0.12+Math.random()*0.26);        // dijagonalno prema dolje-desno
+  const sp=0.55+Math.random()*0.55;                   // px / ms
+  shooters.push({ x:Math.random()*w*0.75, y:Math.random()*h*0.35,
+    vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp,
+    life:0, max:650+Math.random()*450, len:110+Math.random()*90 });
+}
+function drawStars(t){
+  const dt=lastT?Math.min(t-lastT,60):16; lastT=t;
+  const W=starCanvas.width, H=starCanvas.height;
+  sctx.clearRect(0,0,W,H);
+  rot+=0.00045;                                       // vrtnja svemira
+  // PARALAKSA: pozadina se miče i zumira sporije od stabla (kao dalji sloj svemira)
+  const P=0.45, s0=1, cx=W/2, cy=H/2;
+  const vs =(1-P)*s0 + P*view.s;
+  const vtx=(1-P)*cx + P*view.tx;
+  const vty=(1-P)*cy + P*view.ty;
+  for(const st of stars){
+    const a=st.ang+rot;
+    const x=Math.cos(a)*st.dist*vs+vtx, y=Math.sin(a)*st.dist*vs+vty;
+    if(x<-4||x>W+4||y<-4||y>H+4) continue;             // preskoči zvijezde izvan ekrana
+    const tw=0.65+0.35*Math.sin(t*0.001*st.tws+st.tw);
+    let r=st.size*vs; if(r<0.35)r=0.35; else if(r>4.2)r=4.2;
+    sctx.globalAlpha=st.base*tw;
+    sctx.beginPath();
+    sctx.arc(x,y,r,0,6.2832);
+    sctx.fillStyle= st.size>1.2 ? "#eaf1ff" : "#cdddff";
+    sctx.fill();
+  }
+  sctx.globalAlpha=1;
+
+  // shooting stars svakih par sekundi
+  if(t-lastSpawn>nextGap){ spawnShooter(); lastSpawn=t; nextGap=2000+Math.random()*2500; }
+  shooters=shooters.filter(s=>s.life<s.max);
+  for(const s of shooters){
+    s.life+=dt; s.x+=s.vx*dt; s.y+=s.vy*dt;
+    const alpha=Math.sin(Math.PI*(s.life/s.max));     // pojavi se i nestani
+    const nrm=Math.hypot(s.vx,s.vy)||1;
+    const tx=s.x-s.vx/nrm*s.len, ty=s.y-s.vy/nrm*s.len;
+    const grad=sctx.createLinearGradient(s.x,s.y,tx,ty);
+    grad.addColorStop(0,`rgba(255,255,255,${alpha})`);
+    grad.addColorStop(1,"rgba(255,255,255,0)");
+    sctx.strokeStyle=grad; sctx.lineWidth=2; sctx.lineCap="round";
+    sctx.beginPath(); sctx.moveTo(s.x,s.y); sctx.lineTo(tx,ty); sctx.stroke();
+    sctx.globalAlpha=alpha; sctx.beginPath(); sctx.arc(s.x,s.y,1.7,0,Math.PI*2);
+    sctx.fillStyle="#fff"; sctx.fill(); sctx.globalAlpha=1;
+  }
+  requestAnimationFrame(drawStars);
+}
+initStars();
+requestAnimationFrame(drawStars);
+
+window.addEventListener("resize",initStars);
+
+/* ---- pamćenje pozicija: stabilan raspored (dodavanje ne miješa postojeće) ---- */
+// ZAKLJUČANE koordinate — jedini izvor rasporeda; NIKAD se ne mijenjaju automatski (vidi CLAUDE.md)
+const DEFAULT_POS = DATA.positions;
+const saved=DEFAULT_POS;   // raspored se UVIJEK učitava iz DEFAULT_POS (bez localStoragea)
+function applySaved(){
+  nodes.forEach(n=>{ if(saved[n.id]){ n.x=saved[n.id].x; n.y=saved[n.id].y; } });
+  let k=0;
+  nodes.forEach(n=>{
+    if(saved[n.id]) return;                     // nova osoba -> smjesti je pokraj rodbine
+    const rel=[];
+    parents.forEach(([p,c])=>{ if(c===n.id) rel.push(p); if(p===n.id) rel.push(c); });
+    marriages.forEach(([a,b])=>{ if(a===n.id) rel.push(b); if(b===n.id) rel.push(a); });
+    const rp=rel.map(id=>nodeById[id]).filter(Boolean);
+    if(rp.length){ let sx=0,sy=0; rp.forEach(r=>{sx+=r.x;sy+=r.y;});
+      const ang=k*1.9; k++; n.x=sx/rp.length+Math.cos(ang)*58; n.y=sy/rp.length+Math.sin(ang)*58; }
+  });
+}
+
+build(); applySaved(); refresh(); fit();
+
+// izvoz trenutnog rasporeda (kopiraj JSON pa ga ugradimo kao zadani)
+document.getElementById("exportpos").onclick=()=>{
+  const o={}; nodes.forEach(n=>o[n.id]={x:Math.round(n.x),y:Math.round(n.y)});
+  const json=JSON.stringify(o);
+  try{ if(navigator.clipboard) navigator.clipboard.writeText(json); }catch(e){}
+  window.prompt("Raspored je kopiran. Zalijepi ga u chat (Ctrl+C ako treba):", json);
+};
+
+/* ---- Provjeri povezanost (tko ti tko dođe + isticanje lanca veza) ---- */
+(function(){
+  const selA=document.getElementById("relA"), selB=document.getElementById("relB"),
+        out=document.getElementById("relOut"), go=document.getElementById("relGo");
+  const opts=nodes.map(n=>({id:n.id, label:persons[n.id].n+(persons[n.id].born?" ("+persons[n.id].born+")":"")}))
+                  .sort((a,b)=>a.label.localeCompare(b.label,"hr"));
+  // bezimeni čvorovi (dijete, N. dijete, muž, žena, prvi muž, roditelji) ne idu u izbornike
+  const isPlaceholder=nm=>/^(dijete|muž|žena|prvi muž|roditelji)$/i.test(nm)||/^\d+\.\s*dijete$/i.test(nm);
+  const findOpts=opts.filter(o=>!isPlaceholder(persons[o.id].n));
+
+  // naznaka za razlikovanje istoimenih (⚭ supružnik ili roditelji)
+  function hintFor(id){
+    const sp=[]; marriages.forEach(([a,b])=>{ if(a===id)sp.push(b); else if(b===id)sp.push(a); });
+    if(sp.length) return "⚭ "+sp.map(x=>persons[x].n).join(", ");
+    const pa=parentsOfNode[id]; if(pa&&pa.length) return "dijete: "+pa.map(x=>persons[x].n).join(" i ");
+    return "";
+  }
+  // pretraživi combobox: input.value = tekst, input._id = odabrani id
+  function setupCombo(input,list,onSel,optList){
+    optList=optList||opts;
+    input._id="";
+    function render(q){
+      q=(q||"").toLowerCase().trim();
+      list.innerHTML="";
+      const items=optList.filter(o=>!q||o.label.toLowerCase().includes(q)).slice(0,80);
+      for(const o of items){
+        const div=document.createElement("div"); div.className="combo-item";
+        const h=hintFor(o.id);
+        div.innerHTML="<span>"+o.label+"</span>"+(h?"<span class='hint'>"+h+"</span>":"");
+        div.addEventListener("mousedown",ev=>{ ev.preventDefault();
+          input.value=o.label; input._id=o.id; list.classList.remove("open"); (onSel||compute)(o.id); });
+        list.appendChild(div);
+      }
+      list.classList.toggle("open", items.length>0);
+    }
+    input.addEventListener("focus",()=>render(input.value));
+    input.addEventListener("input",()=>{ input._id=""; render(input.value); });
+    input.addEventListener("blur",()=>setTimeout(()=>list.classList.remove("open"),150));
+  }
+  setupCombo(selA, document.getElementById("relAList"), null, findOpts);
+  setupCombo(selB, document.getElementById("relBList"), null, findOpts);
+
+  // tražilica: centriraj mapu na osobu i istakni ju (bez traženja po mapi)
+  function centerOn(id){
+    const n=nodeById[id]; if(!n) return;
+    const r=svg.getBoundingClientRect();
+    if(view.s<0.55) view.s=0.9;
+    view.tx=r.width/2 - n.x*view.s;
+    view.ty=r.height/2 - n.y*view.s;
+    apply();
+  }
+  const findIn=document.getElementById("findIn");
+  if(findIn) setupCombo(findIn, document.getElementById("findList"), id=>{ centerOn(id); showPerson(id); }, findOpts);
+
+  // preci: id -> koliko koljena gore (self=0)
+  function ancestors(id){ const d={}; d[id]=0; const q=[id];
+    while(q.length){ const u=q.shift(); (parentsOfNode[u]||[]).forEach(p=>{ if(d[p]===undefined){d[p]=d[u]+1; q.push(p);} }); }
+    return d; }
+  const spouseSet=new Set(); marriages.forEach(([a,b])=>{spouseSet.add(a+"|"+b); spouseSet.add(b+"|"+a);});
+  // puni neusmjereni graf (roditelj-dijete + brak) za najkraći put
+  const adjAll={}; nodes.forEach(n=>adjAll[n.id]=[]);
+  parents.forEach(([p,c])=>{adjAll[p].push(c); adjAll[c].push(p);});
+  marriages.forEach(([a,b])=>{adjAll[a].push(b); adjAll[b].push(a);});
+  function shortestPath(a,b){ const prev={}; prev[a]=null; const q=[a];
+    while(q.length){ const u=q.shift(); if(u===b) break;
+      for(const v of adjAll[u]) if(prev[v]===undefined){ prev[v]=u; q.push(v); } }
+    if(prev[b]===undefined) return null;
+    const path=[]; let c=b; while(c!==null){ path.unshift(c); c=prev[c]; } return path; }
+  const edgeBetween=(x,y)=>edges.find(e=>(e.s.id===x&&e.t.id===y)||(e.s.id===y&&e.t.id===x));
+
+  // odnos osobe B u odnosu na osobu A (B je A-i ___): dA=A→LCA, dB=B→LCA
+  function bloodTerm(dA,dB){
+    if(dA===0&&dB===0) return "ista osoba";
+    if(dA===0){ if(dB===1)return "dijete"; if(dB===2)return "unuk / unuka";
+      if(dB===3)return "praunuk / praunuka"; return "potomak ("+dB+". koljeno)"; }
+    if(dB===0){ if(dA===1)return "roditelj (otac / majka)"; if(dA===2)return "djed / baka";
+      if(dA===3)return "pradjed / prabaka"; return "predak ("+dA+". koljeno)"; }
+    if(dA===1&&dB===1) return "brat / sestra";
+    if(dA===1&&dB===2) return "nećak / nećakinja";
+    if(dA===2&&dB===1) return "stric / ujak / teta";
+    if(dA===2&&dB===2) return "bratić / sestrična (prvo koljeno)";
+    if(dA===1&&dB>=3)  return "potomak brata/sestre";
+    if(dA>=3&&dB===1)  return "brat/sestra pretka";
+    const deg=Math.min(dA,dB)-1, rem=Math.abs(dA-dB);
+    return "rođak / rođakinja ("+deg+". koljeno"+(rem?", "+rem+"× razmaknuto":"")+")";
+  }
+
+  function compute(){
+    const a=selA._id, b=selB._id;
+    if(!a||!b){ out.textContent="Odaberi obje osobe (upiši i klikni ime iz liste)."; return; }
+    const An=persons[a].n, Bn=persons[b].n;
+    let desc;
+    if(a===b) desc="<b>Ista osoba.</b>";
+    else if(spouseSet.has(a+"|"+b)) desc="<b>"+Bn+"</b> je supružnik (muž / žena) od <b>"+An+"</b>.";
+    else {
+      const anA=ancestors(a), anB=ancestors(b); let lca=null,best=Infinity;
+      for(const id in anA){ if(anB[id]!==undefined){ const s=anA[id]+anB[id]; if(s<best){best=s;lca=id;} } }
+      if(lca) desc="<b>"+Bn+"</b> je "+bloodTerm(anA[lca],anB[lca])+" od <b>"+An+"</b> (zajednički predak: "+persons[lca].n+").";
+      else desc="<b>"+Bn+"</b> i <b>"+An+"</b> povezani su preko braka (rod po tazbini) ili daljom vezom.";
+    }
+    const path=shortestPath(a,b);
+    clearMarks();
+    if(path && path.length>1){
+      rootG.classList.add("dim");
+      path.forEach(id=>nodeById[id].g.classList.add("keep","lit"));
+      for(let i=0;i<path.length-1;i++){ const e=edgeBetween(path[i],path[i+1]); if(e) e.el.classList.add("hi","keep"); }
+      selected="__path__";
+    }
+    out.innerHTML=desc+(path
+      ? "<br><span class='relpath'>"+path.map(id=>persons[id].n).join(" → ")+"  ("+(path.length-1)+" veza)</span>"
+      : "<br>Nisu povezani u stablu.");
+  }
+  go.addEventListener("click",compute);
+})();
+
+/* ==========================================================================
+   3D PRIKAZ (Three.js s CDN-a). 2D ostaje netaknut; gumb "3D/2D" prebacuje.
+   ========================================================================== */
+const TREE3D=(function(){
+  let inited=false, ok=false, renderer, scene, camera, controls, raf=null;
+  const meshes={}, labels={}; let lineSeg=null, starPts=null, hovered=null, raycaster, pointer, focusId=null;
+  let cMarrDef,cParDef,cSpouse,cParents,cChildren,cHiWhite,cHiGold,cDim, sibSeg=null;
+  const SH=155;
+  const childrenByParent={}; parents.forEach(([p,c])=>{(childrenByParent[p]=childrenByParent[p]||[]).push(c);});
+  function setEdgeColor(i,c){ const a=lineSeg.geometry.getAttribute("color"); a.setXYZ(2*i,c.r,c.g,c.b); a.setXYZ(2*i+1,c.r,c.g,c.b); }
+  // boje linija identične 2D-u; stanje po tipu odnosa (brak/roditelji/djeca) + hover
+  function applyEdgeColors(hoverId){
+    if(!lineSeg) return;
+    edges.forEach((e,i)=>{
+      let c = e.type==="m" ? cMarrDef : cParDef;
+      if(focusId){
+        if(e.s.id===focusId||e.t.id===focusId) c = e.type==="m" ? cSpouse : (e.t.id===focusId?cParents:cChildren);
+        else c = cDim;
+      }
+      if(hoverId && (e.s.id===hoverId||e.t.id===hoverId)) c = e.type==="m" ? cHiGold : cHiWhite;
+      setEdgeColor(i,c);
+    });
+    lineSeg.geometry.getAttribute("color").needsUpdate=true;
+  }
+  // narančaste veze na braću/sestre (kao 2D siblink) kad je čvor odabran
+  function updateSiblings(id){
+    if(sibSeg){ scene.remove(sibSeg); sibSeg.geometry.dispose(); sibSeg.material.dispose(); sibSeg=null; }
+    if(!id) return;
+    const sibs=new Set(); (parentsOfNode[id]||[]).forEach(pa=>{ (childrenByParent[pa]||[]).forEach(c=>{ if(c!==id) sibs.add(c); }); });
+    if(!sibs.size) return;
+    const a=nodeById[id], pos=[];
+    sibs.forEach(sid=>{ const b=nodeById[sid]; if(b) pos.push(a.x3,a.y3,a.z3, b.x3,b.y3,b.z3); });
+    const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));
+    sibSeg=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0xf0996b,transparent:true,opacity:0.9}));
+    scene.add(sibSeg);
+  }
+
+  function layout3d(){
+    const byGen={}; clusters.forEach(c=>{(byGen[c.gen]=byGen[c.gen]||[]).push(c);});
+    Object.keys(byGen).forEach(gk=>{
+      const g=+gk, arr=byGen[gk], R=(g===0?70:g*SH), n=arr.length;
+      arr.forEach((c,i)=>{
+        if(c===sunCluster){ c.px=0;c.py=0;c.pz=0; return; }
+        const y=(n>1?((i*2/n)-1+1/n):0), rr=Math.sqrt(Math.max(0,1-y*y)), phi=i*2.399963;
+        c.px=Math.cos(phi)*rr*R; c.py=y*R; c.pz=Math.sin(phi)*rr*R;
+      });
+    });
+    const K=155; let temp=300; const cool=0.965, steps=260, kR=0.10;
+    for(let s=0;s<steps;s++){
+      clusters.forEach(c=>{c.fx=0;c.fy=0;c.fz=0;});
+      for(let i=0;i<clusters.length;i++) for(let j=i+1;j<clusters.length;j++){
+        const a=clusters[i],b=clusters[j];
+        let dx=a.px-b.px,dy=a.py-b.py,dz=a.pz-b.pz,d=Math.hypot(dx,dy,dz)||0.5;
+        const f=(K*K)/d, ux=dx/d,uy=dy/d,uz=dz/d;
+        a.fx+=ux*f;a.fy+=uy*f;a.fz+=uz*f; b.fx-=ux*f;b.fy-=uy*f;b.fz-=uz*f;
+      }
+      for(const e of cedges){ const a=e.s,b=e.t;
+        let dx=a.px-b.px,dy=a.py-b.py,dz=a.pz-b.pz,d=Math.hypot(dx,dy,dz)||0.5;
+        const f=(d*d)/e.len, ux=dx/d,uy=dy/d,uz=dz/d;
+        a.fx-=ux*f;a.fy-=uy*f;a.fz-=uz*f; b.fx+=ux*f;b.fy+=uy*f;b.fz+=uz*f;
+      }
+      for(const c of clusters){ if(c===sunCluster) continue;
+        const r=Math.hypot(c.px,c.py,c.pz)||0.5, tgt=(c.gen===0?90:c.gen*SH), f=kR*(tgt-r);
+        c.fx+=c.px/r*f; c.fy+=c.py/r*f; c.fz+=c.pz/r*f;
+      }
+      for(const c of clusters){ if(c===sunCluster) continue;
+        let d=Math.hypot(c.fx,c.fy,c.fz)||0.01, m=Math.min(d,temp);
+        c.px+=c.fx/d*m; c.py+=c.fy/d*m; c.pz+=c.fz/d*m;
+      }
+      temp*=cool;
+    }
+    // partneri jedan uz drugoga (tangencijalno na sferu)
+    clusters.forEach(c=>{
+      if(c.members.length===1){ const n=c.members[0]; n.x3=c.px;n.y3=c.py;n.z3=c.pz; return; }
+      const [A,B]=c.members; let rr=Math.hypot(c.px,c.py,c.pz)||1, ux=c.px/rr,uy=c.py/rr,uz=c.pz/rr;
+      let tx=uy,ty=-ux,tz=0, tn=Math.hypot(tx,ty,tz); if(tn<1e-3){tx=1;ty=0;tz=0;tn=1;} tx/=tn;ty/=tn;tz/=tn;
+      const off=(A.r+B.r)/2+9;
+      A.x3=c.px+tx*off; A.y3=c.py+ty*off; A.z3=c.pz+tz*off;
+      B.x3=c.px-tx*off; B.y3=c.py-ty*off; B.z3=c.pz-tz*off;
+    });
+  }
+
+  function makeLabel(text){
+    const cv=document.createElement("canvas"), ctx=cv.getContext("2d"), fs=48;
+    ctx.font="600 "+fs+"px Segoe UI, sans-serif";
+    cv.width=Math.ceil(ctx.measureText(text).width)+24; cv.height=fs+22;
+    ctx.font="600 "+fs+"px Segoe UI, sans-serif"; ctx.textBaseline="middle";
+    ctx.lineJoin="round"; ctx.lineWidth=7; ctx.strokeStyle="#081124"; ctx.strokeText(text,12,cv.height/2);
+    ctx.fillStyle="#dbe4f5"; ctx.fillText(text,12,cv.height/2);
+    const tex=new THREE.CanvasTexture(cv); tex.minFilter=THREE.LinearFilter;
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false,depthTest:false}));
+    sp.scale.set(cv.width/fs*13, 13, 1); sp.userData.baseOp=1;
+    return sp;
+  }
+
+  function init(){
+    if(inited) return ok; inited=true;
+    if(typeof THREE==="undefined"){ return ok=false; }
+    try{
+      layout3d();
+      renderer=new THREE.WebGLRenderer({antialias:true, alpha:true});
+      renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+      renderer.setSize(stage.clientWidth, stage.clientHeight);
+      renderer.domElement.style.cssText="position:absolute;inset:0;z-index:2;display:none;cursor:grab";
+      stage.appendChild(renderer.domElement);
+      scene=new THREE.Scene();
+      camera=new THREE.PerspectiveCamera(55, stage.clientWidth/stage.clientHeight, 1, 40000);
+      const maxR=Math.max(...nodes.map(n=>Math.hypot(n.x3,n.y3,n.z3)))||500;
+      camera.position.set(maxR*0.6, maxR*0.5, maxR*2.3);
+      controls=new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping=true; controls.dampingFactor=0.08;
+      scene.add(new THREE.AmbientLight(0xffffff,0.8));
+      const pl=new THREE.PointLight(0xffffff,0.7); scene.add(pl);
+      const geo=new THREE.SphereGeometry(1,24,24);
+      nodes.forEach(n=>{
+        const col=new THREE.Color(colourFor(n.id));
+        const mat=new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:1}); // točna boja kao 2D
+        const m=new THREE.Mesh(geo,mat); m.scale.setScalar(n.r*0.95);
+        m.position.set(n.x3,n.y3,n.z3); m.userData.id=n.id; scene.add(m); meshes[n.id]=m;
+        const lb=makeLabel(persons[n.id].n); lb.position.set(n.x3, n.y3+n.r*0.95+9, n.z3); scene.add(lb); labels[n.id]=lb;
+      });
+      // iste boje kao 2D: brak rgba(232,180,94,.55), roditelj-dijete rgba(150,180,230,.22), preračunato preko tamne pozadine
+      const bg=new THREE.Color(0x0b1836);
+      const blend=(hex,al)=>{ const f=new THREE.Color(hex); return new THREE.Color(f.r*al+bg.r*(1-al), f.g*al+bg.g*(1-al), f.b*al+bg.b*(1-al)); };
+      cMarrDef=blend(0xe8b45e,0.55); cParDef=blend(0x96b4e6,0.22);
+      cSpouse=new THREE.Color(0xe8b45e); cParents=new THREE.Color(0x5db4e0); cChildren=new THREE.Color(0x63d6a6);
+      cHiWhite=new THREE.Color(0xffffff); cHiGold=new THREE.Color(0xffdb99); cDim=new THREE.Color(0x101d38);
+      const pos=[], colr=[];
+      edges.forEach(e=>{ const a=e.s,b=e.t; pos.push(a.x3,a.y3,a.z3, b.x3,b.y3,b.z3);
+        const c=e.type==="m"?cMarrDef:cParDef; colr.push(c.r,c.g,c.b, c.r,c.g,c.b); });
+      const lg=new THREE.BufferGeometry();
+      lg.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));
+      lg.setAttribute("color",new THREE.Float32BufferAttribute(colr,3));
+      lineSeg=new THREE.LineSegments(lg,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:1}));
+      scene.add(lineSeg);
+      const sp=[]; for(let i=0;i<1600;i++){ const r=3500+Math.random()*5000, u=Math.random()*2-1, th=Math.random()*6.283, s=Math.sqrt(1-u*u); sp.push(Math.cos(th)*s*r,u*r,Math.sin(th)*s*r); }
+      const sg=new THREE.BufferGeometry(); sg.setAttribute("position",new THREE.Float32BufferAttribute(sp,3));
+      starPts=new THREE.Points(sg,new THREE.PointsMaterial({color:0xcddcff,size:7,sizeAttenuation:true,transparent:true,opacity:0.9}));
+      scene.add(starPts);
+      raycaster=new THREE.Raycaster(); pointer=new THREE.Vector2();
+      renderer.domElement.addEventListener("pointermove",onMove);
+      renderer.domElement.addEventListener("click",onClick);
+      window.addEventListener("resize",onResize);
+      ok=true;
+    }catch(err){ console.error("3D init:",err); ok=false; }
+    return ok;
+  }
+  function onResize(){ if(!ok||!renderer)return; renderer.setSize(stage.clientWidth,stage.clientHeight);
+    camera.aspect=stage.clientWidth/stage.clientHeight; camera.updateProjectionMatrix(); }
+  function pick(e){ const r=renderer.domElement.getBoundingClientRect();
+    pointer.x=((e.clientX-r.left)/r.width)*2-1; pointer.y=-((e.clientY-r.top)/r.height)*2+1;
+    raycaster.setFromCamera(pointer,camera); const h=raycaster.intersectObjects(Object.values(meshes));
+    return h[0]?h[0].object.userData.id:null; }
+  function onMove(e){ const id=pick(e);
+    if(id!==hovered){
+      if(hovered&&meshes[hovered]) meshes[hovered].scale.setScalar(nodeById[hovered].r*0.95);
+      hovered=id;
+      if(id&&meshes[id]) meshes[id].scale.setScalar(nodeById[id].r*0.95*1.2);
+      renderer.domElement.style.cursor=id?"pointer":"grab";
+      applyEdgeColors(hovered);
+    } }
+  function onClick(e){ const id=pick(e); if(id){ fillDetail(id); focus3d(id); } else clearFocus3d(); }
+  function focus3d(id){ focusId=id;
+    const nb=new Set([id]);
+    edges.forEach(e=>{ if(e.s.id===id) nb.add(e.t.id); else if(e.t.id===id) nb.add(e.s.id); });
+    (parentsOfNode[id]||[]).forEach(pa=>{ (childrenByParent[pa]||[]).forEach(c=>nb.add(c)); }); // braća/sestre ostaju vidljivi
+    Object.keys(meshes).forEach(k=>{ const on=nb.has(k);
+      meshes[k].material.opacity=on?1:0.1; labels[k].material.opacity=on?1:0.1; });
+    updateSiblings(id);
+    applyEdgeColors(hovered);
+  }
+  function clearFocus3d(){ focusId=null;
+    Object.keys(meshes).forEach(k=>{ meshes[k].material.opacity=1; labels[k].material.opacity=1; });
+    updateSiblings(null);
+    applyEdgeColors(hovered);
+  }
+  function loop(){ raf=requestAnimationFrame(loop); if(controls)controls.update(); if(starPts)starPts.rotation.y+=0.0004; renderer.render(scene,camera); }
+  function show(){ if(!init()) return false; renderer.domElement.style.display="block"; onResize(); if(!raf) loop(); return true; }
+  function hide(){ if(raf){cancelAnimationFrame(raf);raf=null;} if(renderer)renderer.domElement.style.display="none"; }
+  return { show, hide, available:()=>typeof THREE!=="undefined" };
+})();
+
+/* ---- gumb 2D / 3D ---- */
+(function(){
+  let mode="2d"; const btn=document.getElementById("toggle3d");
+  const svgEl=document.getElementById("svg"), starEl=document.getElementById("stars");
+  btn.addEventListener("click",()=>{
+    if(mode==="2d"){
+      if(!TREE3D.available()){ alert("3D prikaz treba internet (učitava Three.js). Provjeri vezu pa pokušaj ponovno."); return; }
+      if(!TREE3D.show()){ alert("3D se nije uspio pokrenuti (WebGL?). 2D i dalje radi."); return; }
+      mode="3d"; svgEl.style.display="none"; starEl.style.display="none"; btn.textContent="2D";
+    } else {
+      TREE3D.hide(); mode="2d"; svgEl.style.display=""; starEl.style.display=""; btn.textContent="3D";
+    }
+  });
+})();
+
+}
+</script>
+</body>
+</html>
