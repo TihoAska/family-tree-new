@@ -16,7 +16,7 @@
   #stage{flex:1;position:relative;overflow:hidden;
          background:radial-gradient(circle at 50% 45%, #14306a 0%, #0b1836 55%, #050a1c 100%)}
   #stars{position:absolute;inset:0;z-index:0;pointer-events:none}
-  svg{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;z-index:1;background:transparent}
+  svg{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;z-index:1;background:transparent;touch-action:none}
   svg.grabbing{cursor:grabbing}
 
   .edge{stroke:var(--line);stroke-width:1.4;transition:stroke .3s ease,opacity .3s ease,stroke-width .3s ease}
@@ -51,6 +51,9 @@
   .node .body{filter:drop-shadow(0 0 8px rgba(165,200,255,.7)) drop-shadow(0 0 16px rgba(140,175,235,.4))}
   .node.sun .body{fill:#ffcf5e !important;
     filter:drop-shadow(0 0 18px rgba(255,193,70,.95)) drop-shadow(0 0 40px rgba(255,150,40,.6))}
+  /* dok se pomiče/zumira: bez skupih glow filtera (glatko) */
+  #root.moving .node .body,#root.moving .node.sun .body{filter:none}
+  #root.moving .node .lbl,#root.moving .node .yr{display:none}
   .node:hover .body{filter:drop-shadow(0 0 10px #fff) drop-shadow(0 0 5px #fff)}
   .node:hover .lbl{fill:#fff}
   .node.sel .body{stroke:#fff;stroke-width:2.5}
@@ -101,8 +104,21 @@
   .warn{background:#2a2412;border:1px solid #5a4a1e;border-radius:8px;padding:8px 10px;
         font-size:12px;line-height:1.45;color:#e8cf9a;margin-bottom:14px}
   .swatch{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:middle}
-  @media(max-width:760px){#app{flex-direction:column}#side{width:100%;height:44%;
-        border-left:0;border-top:1px solid #1c2f57}#stage{height:56%}}
+  #menuBtn,#sideBackdrop{display:none}
+  #menuBtn.glow{border-color:#ff6b6b;color:#ff9a9a;animation:mpulse 1.4s ease-in-out infinite}
+  @keyframes mpulse{0%,100%{box-shadow:0 0 8px 2px rgba(255,80,80,.5)}50%{box-shadow:0 0 18px 6px rgba(255,80,80,.95)}}
+  @media(max-width:760px){
+    #app{flex-direction:row}
+    #disclaimer{display:none}
+    #menuBtn{display:flex;position:fixed;top:14px;right:14px;z-index:30;width:42px;height:42px;
+      align-items:center;justify-content:center;font-size:20px;background:#12244dcc;color:#dbe4f5;
+      border:1px solid #33507f;border-radius:9px;cursor:pointer}
+    #side{position:fixed;top:0;right:0;height:100%;width:86%;max-width:340px;z-index:40;
+      transform:translateX(100%);transition:transform .25s ease;border-left:1px solid #1c2f57}
+    #side.open{transform:translateX(0)}
+    #sideBackdrop{position:fixed;inset:0;background:#0009;z-index:35}
+    #sideBackdrop.show{display:block}
+  }
 
   #login{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;overflow:hidden;
     background:radial-gradient(circle at 50% 40%,#14306a,#0b1836 60%,#050a1c)}
@@ -118,6 +134,21 @@
   #logout{margin:8px 18px 14px;background:#2a1520;color:#ff9a9a;border:1px solid #5a2e3e;
     border-radius:8px;padding:9px;font-size:13px;cursor:pointer}
   #logout:hover{background:#3a1c2a}
+  #contactBtn{margin:10px 18px 2px;background:#12244d;color:#dbe4f5;border:1px solid #33507f;
+    border-radius:8px;padding:9px;font-size:13px;cursor:pointer}
+  #contactBtn:hover{background:#1b356b}
+  #contactModal{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:#0009}
+  #contactModal .cbox{background:#0e1e42;border:1px solid #33507f;border-radius:12px;padding:18px;width:min(92vw,360px);
+    display:flex;flex-direction:column;gap:10px;box-shadow:0 12px 44px #000a}
+  #contactModal h3{margin:0;color:#f0c96b;font-size:16px}
+  #cText{width:100%;min-height:110px;resize:vertical;background:#12244d;color:#dbe4f5;border:1px solid #33507f;
+    border-radius:8px;padding:9px 10px;font-size:13.5px;font-family:inherit}
+  #contactModal .crow{display:flex;gap:8px;justify-content:flex-end}
+  #contactModal button{border:1px solid #33507f;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;color:#dbe4f5}
+  #cCancel{background:#1a2744}
+  #cSend{background:#1b356b}
+  #cSend:hover{background:#254a8f}
+  #cMsg{font-size:12px;color:#9ad6a0;min-height:14px}
 </style>
 <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -131,6 +162,8 @@
   <div id="loginMsg"></div>
 </form></div>
 <div id="app" style="display:none">
+  <div id="menuBtn">☰</div>
+  <div id="sideBackdrop"></div>
   <div id="stage">
     <canvas id="stars"></canvas>
     <div id="controls">
@@ -158,7 +191,20 @@
       <div id="relOut"></div>
     </div>
     <div id="notes"></div>
+    <button id="contactBtn">✉ Kontaktiraj autora</button>
     <button id="logout">Odjava</button>
+  </div>
+</div>
+
+<div id="contactModal">
+  <div class="cbox">
+    <h3>Kontaktiraj autora</h3>
+    <textarea id="cText" placeholder="Napiši poruku (npr. ispravak imena, molba za uklanjanje…)"></textarea>
+    <div id="cMsg"></div>
+    <div class="crow">
+      <button id="cCancel">Odustani</button>
+      <button id="cSend">Pošalji</button>
+    </div>
   </div>
 </div>
 
@@ -191,6 +237,40 @@ loginForm.addEventListener("submit", async e=>{
 sb.auth.getSession().then(({data})=>{ if(data.session) loadAndStart(); });
 const logoutBtn=document.getElementById("logout");
 if(logoutBtn) logoutBtn.addEventListener("click", async ()=>{ await sb.auth.signOut(); location.reload(); });
+
+/* ---- kontakt: pošalji poruku autoru (preko Supabase Edge funkcije → Telegram) ---- */
+(function(){
+  const btn=document.getElementById("contactBtn"), modal=document.getElementById("contactModal"),
+        txt=document.getElementById("cText"), send=document.getElementById("cSend"),
+        cancel=document.getElementById("cCancel"), msg=document.getElementById("cMsg");
+  if(!btn||!modal) return;
+  function open(o){ modal.style.display=o?"flex":"none"; if(o){ msg.textContent=""; msg.style.color="#9ad6a0"; txt.value=""; setTimeout(()=>txt.focus(),50); } }
+  btn.addEventListener("click",()=>open(true));
+  cancel.addEventListener("click",()=>open(false));
+  modal.addEventListener("click",e=>{ if(e.target===modal) open(false); });
+  send.addEventListener("click", async ()=>{
+    const text=(txt.value||"").trim();
+    if(!text){ msg.style.color="#f0996b"; msg.textContent="Upiši poruku."; return; }
+    msg.style.color="#9ad6a0"; msg.textContent="Šaljem…"; send.disabled=true;
+    try{
+      const { error } = await sb.functions.invoke("rapid-worker",{ body:{ text } });
+      if(error) throw error;
+      msg.textContent="Poslano! Hvala.";
+      setTimeout(()=>open(false),1300);
+    }catch(e){ console.error(e); msg.style.color="#f0996b"; msg.textContent="Greška pri slanju. Pokušaj kasnije."; }
+    send.disabled=false;
+  });
+})();
+
+/* ---- mobilni: hamburger drawer za sidebar ---- */
+(function(){
+  const menuBtn=document.getElementById("menuBtn"), sideEl=document.getElementById("side"), backdrop=document.getElementById("sideBackdrop");
+  function openSide(o){ if(!sideEl)return; sideEl.classList.toggle("open",o); if(backdrop) backdrop.classList.toggle("show",o); if(o&&menuBtn) menuBtn.classList.remove("glow"); }
+  if(menuBtn) menuBtn.addEventListener("click",()=>openSide(!sideEl.classList.contains("open")));
+  if(backdrop) backdrop.addEventListener("click",()=>openSide(false));
+  window.__markSelected=()=>{ if(window.innerWidth<=760 && menuBtn && !sideEl.classList.contains("open")) menuBtn.classList.add("glow"); };
+  window.__clearMark=()=>{ if(menuBtn) menuBtn.classList.remove("glow"); };
+})();
 
 /* ---- zvijezde iza logina (bez sunčevog sustava) ---- */
 (function(){
@@ -441,6 +521,7 @@ function clearSelection(){
   selected=null;
   rootG.classList.remove("dim");
   clearMarks();
+  if(window.__clearMark) window.__clearMark();
   document.getElementById("detail").innerHTML='<p class="empty">Klikni na čvor da vidiš podatke o osobi.</p>';
 }
 
@@ -455,6 +536,7 @@ function fillDetail(id){
 }
 function showPerson(id){
   const p=persons[id]; if(!p) return;
+  if(window.__markSelected) window.__markSelected();
   selected=id;
   const n=nodeById[id];
   clearMarks();
@@ -546,12 +628,12 @@ function fit(){
   apply();
 }
 
-let panning=false,panMoved=false,psx,psy;
+let panning=false,panMoved=false,psx,psy,wheelT;
 svg.addEventListener("mousedown",e=>{ if(e.target.closest(".node"))return;
-  panning=true;panMoved=false;psx=e.clientX-view.tx;psy=e.clientY-view.ty;svg.classList.add("grabbing"); });
+  panning=true;panMoved=false;psx=e.clientX-view.tx;psy=e.clientY-view.ty;svg.classList.add("grabbing"); rootG.classList.add("moving"); });
 svg.addEventListener("click",e=>{ if(!e.target.closest(".node") && !panMoved && selected) clearSelection(); });
 let dragNode=null,draggedMoved=false,goffx,goffy;
-function startNodeDrag(ev,n){ ev.stopPropagation(); dragNode=n; draggedMoved=false;
+function startNodeDrag(ev,n){ ev.stopPropagation(); dragNode=n; draggedMoved=false; rootG.classList.add("moving");
   const gx=(ev.clientX-view.tx)/view.s, gy=(ev.clientY-view.ty)/view.s;
   goffx=gx-n.x; goffy=gy-n.y; }
 window.addEventListener("mousemove",e=>{
@@ -560,14 +642,37 @@ window.addEventListener("mousemove",e=>{
     dragNode.y=(e.clientY-view.ty)/view.s-goffy; refresh(); return; }
   if(panning){ panMoved=true; view.tx=e.clientX-psx; view.ty=e.clientY-psy; apply(); }
 });
-window.addEventListener("mouseup",()=>{ panning=false;dragNode=null;svg.classList.remove("grabbing"); });
+window.addEventListener("mouseup",()=>{ panning=false;dragNode=null;svg.classList.remove("grabbing"); rootG.classList.remove("moving"); });
 svg.addEventListener("wheel",e=>{
   e.preventDefault();
+  rootG.classList.add("moving"); clearTimeout(wheelT); wheelT=setTimeout(()=>rootG.classList.remove("moving"),180);
   const r=svg.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
   const f=e.deltaY<0?1.12:1/1.12, ns=Math.min(3.5,Math.max(0.15,view.s*f));
   view.tx=mx-(mx-view.tx)*(ns/view.s); view.ty=my-(my-view.ty)*(ns/view.s);
   view.s=ns; apply();
 },{passive:false});
+
+/* ---- dodir (mobitel): 1 prst = pomicanje, 2 prsta = pinch zoom, tap = info ---- */
+let tMode=null, tSX=0, tSY=0, tvx=0, tvy=0, tvs=1, pinchD=0, pinchMx=0, pinchMy=0;
+svg.addEventListener("touchstart",e=>{
+  rootG.classList.add("moving");
+  if(e.touches.length===1){ tMode="pan"; tSX=e.touches[0].clientX; tSY=e.touches[0].clientY; tvx=view.tx; tvy=view.ty; }
+  else if(e.touches.length===2){ tMode="pinch"; const a=e.touches[0],b=e.touches[1];
+    pinchD=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+    pinchMx=(a.clientX+b.clientX)/2; pinchMy=(a.clientY+b.clientY)/2; tvx=view.tx; tvy=view.ty; tvs=view.s; }
+},{passive:false});
+svg.addEventListener("touchmove",e=>{
+  if(tMode==="pan"&&e.touches.length===1){
+    view.tx=tvx+(e.touches[0].clientX-tSX); view.ty=tvy+(e.touches[0].clientY-tSY); apply(); e.preventDefault();
+  } else if(tMode==="pinch"&&e.touches.length===2){
+    const a=e.touches[0],b=e.touches[1], d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+    const ns=Math.min(3.5,Math.max(0.15,tvs*(d/(pinchD||1))));
+    const r=svg.getBoundingClientRect(), mx=pinchMx-r.left, my=pinchMy-r.top;
+    view.tx=mx-(mx-tvx)*(ns/tvs); view.ty=my-(my-tvy)*(ns/tvs); view.s=ns; apply(); e.preventDefault();
+  }
+},{passive:false});
+svg.addEventListener("touchend",e=>{ if(e.touches.length===0){ tMode=null; rootG.classList.remove("moving"); } });
+
 document.getElementById("zin").onclick=()=>{view.s=Math.min(3.5,view.s*1.15);apply();};
 document.getElementById("zout").onclick=()=>{view.s=Math.max(0.15,view.s/1.15);apply();};
 document.getElementById("zreset").onclick=fit;
