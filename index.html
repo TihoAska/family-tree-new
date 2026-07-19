@@ -10,10 +10,10 @@
     --gold:#e8b45e; --line:rgba(150,180,230,.22); --mline:rgba(232,180,94,.55);
   }
   *{box-sizing:border-box}
-  html,body{margin:0;height:100vh;height:100svh;font-family:"Segoe UI",system-ui,sans-serif;
+  html,body{margin:0;height:100vh;height:100svh;height:var(--apph,100svh);font-family:"Segoe UI",system-ui,sans-serif;
             color:var(--ink);background:var(--bg);overflow:hidden;overscroll-behavior:none}
   body{position:fixed;top:0;left:0;right:0}
-  #app{display:flex;height:100vh;height:100svh}
+  #app{display:flex;height:100vh;height:100svh;height:var(--apph,100svh)}
   #stage{flex:1;position:relative;overflow:hidden;
          background:radial-gradient(circle at 50% 45%, #14306a 0%, #0b1836 55%, #050a1c 100%)}
   #stars{position:absolute;inset:0;z-index:0;pointer-events:none}
@@ -211,7 +211,19 @@
   </div>
 </div>
 
-<script>const SUPA_URL="https://hxydndikdcjbnmfdhvus.supabase.co";
+<script>
+/* mobilni (osobito iPhone Chrome gdje su svh/dvh netočni): visinu uzmi iz visualViewport */
+function setAppH(){
+  var h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight;
+  if(h) document.documentElement.style.setProperty("--apph", Math.round(h)+"px");
+}
+setAppH();
+window.addEventListener("resize",setAppH);
+window.addEventListener("orientationchange",function(){ setAppH(); setTimeout(setAppH,300); });
+window.addEventListener("load",function(){ setAppH(); setTimeout(setAppH,300); });
+if(window.visualViewport){ window.visualViewport.addEventListener("resize",setAppH); window.visualViewport.addEventListener("scroll",setAppH); }
+setTimeout(setAppH,150); setTimeout(setAppH,600);
+const SUPA_URL="https://hxydndikdcjbnmfdhvus.supabase.co";
 const SUPA_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4eWRuZGlrZGNqYm5tZmRodnVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0NjQxMDEsImV4cCI6MjEwMDA0MDEwMX0.kYG-FfSIwQAsFPD57owyM2o5Ihot-TbBGl8tdoohW8o";
 const sb=window.supabase.createClient(SUPA_URL,SUPA_KEY);
 const loginBox=document.getElementById("login"), appBox=document.getElementById("app"),
@@ -226,6 +238,7 @@ async function loadAndStart(){
     const meta = user ? (user.app_metadata||{}) : {};
     const isAdmin = !!(meta.admin===true || meta.role==="admin");
     loginBox.style.display="none"; appBox.style.display="flex";
+    setAppH(); setTimeout(setAppH,150); setTimeout(setAppH,500);
     if(!started){ started=true; startApp(d); }
     const exp=document.getElementById("exportpos"); if(exp) exp.style.display = isAdmin ? "" : "none";
     if(isAdmin){
