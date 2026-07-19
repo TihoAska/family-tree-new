@@ -49,9 +49,10 @@
              paint-order:stroke;stroke:#081124;stroke-width:3px;pointer-events:none;transition:fill .3s ease}
   .node .yr{fill:var(--muted);font-size:10px;text-anchor:middle;
             paint-order:stroke;stroke:#081124;stroke-width:3px;pointer-events:none}
-  .node .body{filter:drop-shadow(0 0 8px rgba(165,200,255,.7)) drop-shadow(0 0 16px rgba(140,175,235,.4))}
+  .node .body{filter:none}
   .node.sun .body{fill:#ffcf5e !important;
     filter:drop-shadow(0 0 18px rgba(255,193,70,.95)) drop-shadow(0 0 40px rgba(255,150,40,.6))}
+  .node.eldest .body{filter:drop-shadow(0 0 8px rgba(165,200,255,.7)) drop-shadow(0 0 16px rgba(140,175,235,.4))}
   /* dok se pomiče/zumira: bez skupih glow filtera (glatko) */
   #root.moving .node .body,#root.moving .node.sun .body{filter:none}
   .node:hover .body{filter:drop-shadow(0 0 10px #fff) drop-shadow(0 0 5px #fff)}
@@ -366,6 +367,7 @@ function computeAge(){
 }
 computeAge();
 const maxAge=Math.max(...nodes.map(n=>n.age));
+let ELDEST_ID=null,_maxA=-1; nodes.forEach(n=>{ if(n.age>_maxA){_maxA=n.age;ELDEST_ID=n.id;} });   // najstariji = najveći planet (zadržava glow)
 
 // --- Sunce = najstariji predak (gen 0) s najviše potomaka ---
 // (ručno možeš postaviti npr. SUN_ID="pile_d" ako želiš drugo Sunce)
@@ -596,7 +598,7 @@ function build(){
   edges.forEach(e=>{ e.el=el("line",{class:"edge"+(e.type==="m"?" marriage":"")}); edgesG.appendChild(e.el); });
   nodes.forEach(n=>{
     const p=persons[n.id];
-    const g=el("g",{class:"node"+(n===sun?" sun":"")});
+    const g=el("g",{class:"node"+(n===sun?" sun":"")+(n.id===ELDEST_ID?" eldest":"")});
     g.appendChild(el("circle",{class:"body",r:n.r,fill:colourFor(n.id)}));
     g.appendChild(el("circle",{class:"sheen",r:n.r*0.42,cx:-n.r*0.32,cy:-n.r*0.32,
                                fill:"#ffffff","fill-opacity":0.22}));
@@ -810,7 +812,11 @@ document.getElementById("exportpos").onclick=()=>{
   const opts=nodes.map(n=>({id:n.id, label:persons[n.id].n+(persons[n.id].born?" ("+persons[n.id].born+")":"")}))
                   .sort((a,b)=>a.label.localeCompare(b.label,"hr"));
   // bezimeni čvorovi (dijete, N. dijete, muž, žena, prvi muž, roditelji) ne idu u izbornike
-  const isPlaceholder=nm=>/^(dijete|muž|žena|prvi muž|roditelji)$/i.test(nm)||/^\d+\.\s*dijete$/i.test(nm);
+  const SURN_ONLY=/^(Aščić|Davidović|Dražetić|Nikolić|Cvitkušić|Pučić|Brataljenović|Ljubej|Lovrenčić|Majdančić|Uršić|Verić|Vukadin|Petrović|Čolaković|Marijanić|Katilović|Poplašen|Blakiston)$/;
+  const isPlaceholder=nm=>{
+    const bare=nm.replace(/„[^“]*“/g,"").replace(/\([^)]*\)/g,"").replace(/\s+/g," ").trim();
+    return /^(dijete|muž|žena|prvi muž|roditelji|brat)$/i.test(bare)||/^\d+\.\s*dijete$/i.test(bare)||SURN_ONLY.test(bare);
+  };
   const findOpts=opts.filter(o=>!isPlaceholder(persons[o.id].n));
 
   // naznaka za razlikovanje istoimenih (⚭ supružnik ili roditelji)
