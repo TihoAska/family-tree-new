@@ -57,11 +57,20 @@
   .node:hover .body{filter:drop-shadow(0 0 10px #fff) drop-shadow(0 0 5px #fff)}
   .node:hover .lbl{fill:#fff}
   .node.sel .body{stroke:#fff;stroke-width:2.5}
+  .node.gsel .body{stroke:#ffd27a;stroke-width:3;
+        filter:drop-shadow(0 0 8px rgba(255,210,122,.95)) drop-shadow(0 0 16px rgba(255,180,60,.5))}
+  #marquee{position:absolute;border:1.5px dashed #ffd27a;background:rgba(255,210,122,.12);
+        pointer-events:none;z-index:6;display:none}
+  #adminbadge{position:absolute;left:14px;top:56px;z-index:6;display:none;
+        background:#3a2a00;border:1px solid #b98b1e;color:#ffd27a;font-size:11px;font-weight:700;
+        padding:3px 8px;border-radius:6px;letter-spacing:.05em}
+  #stage.admin{cursor:crosshair}
 
   #controls{position:absolute;left:14px;top:14px;display:flex;gap:6px;z-index:5}
   #controls button{height:34px;min-width:34px;padding:0 10px;border:1px solid #33507f;
         background:#12244d;border-radius:8px;font-size:14px;cursor:pointer;color:var(--ink)}
   #controls button:hover{background:#1b356b}
+  #controls button.on{background:#3a2a00;border-color:#b98b1e;color:#ffd27a}
   #hint{position:absolute;right:14px;bottom:12px;font-size:11px;color:var(--muted);
         background:#0b1836cc;padding:4px 8px;border-radius:6px;z-index:5}
   #disclaimer{position:absolute;left:0;right:0;bottom:0;font-size:14px;text-align:center;
@@ -73,15 +82,27 @@
   #side header{padding:16px 18px 10px;border-bottom:1px solid #1c2f57}
   #side header h1{margin:0;font-size:18px;color:var(--gold)}
   #side header p{margin:4px 0 0;font-size:12px;color:var(--muted)}
-  #detail{padding:14px 18px;border-bottom:1px solid #1c2f57;min-height:110px}
+  #detail{padding:14px 18px;border-bottom:1px solid #1c2f57;min-height:110px;
+          max-height:46vh;overflow-y:auto}
   #detail .dn{font-size:16px;font-weight:700;margin:0 0 2px}
   #detail .dy{font-size:12.5px;color:var(--gold);margin:0 0 8px;font-weight:600}
   #detail .di{font-size:13px;line-height:1.5;color:#c4d2ec;margin:0}
   #detail .empty{color:var(--muted);font-style:italic;font-size:13px}
+  #detail .relbox{margin-top:10px;border-top:1px solid #1c2f57;padding-top:9px}
+  #detail .relgrp{margin-bottom:9px}
+  #detail .relh{font-size:11px;text-transform:uppercase;letter-spacing:.04em;
+          color:var(--muted);font-weight:700;margin-bottom:3px}
+  #detail .rell{list-style:none;margin:0;padding:0}
+  #detail .rell li{font-size:12.5px;color:#dbe4f5;line-height:1.55}
+  #detail .rell li[data-id]{cursor:pointer}
+  #detail .rell li[data-id]:hover{color:#fff;text-decoration:underline}
+  #detail .rell .ry{color:var(--gold);font-size:11px;margin-left:4px}
+  #detail .rell .rtag{color:var(--muted);font-size:11px;font-style:italic;margin-left:4px}
   #rel{padding:12px 18px;border-bottom:1px solid #1c2f57}
   #rel h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 8px}
   #rel label{font-size:11px;color:var(--muted);display:block;margin-top:4px}
   #findbar{padding:12px 18px 6px}
+  #memberCount{font-size:11.5px;color:var(--muted);margin-top:5px}
   .combo{position:relative}
   .combo-in{width:100%;margin:3px 0 4px;background:#12244d;color:var(--ink);
         border:1px solid #33507f;border-radius:6px;padding:5px 6px;font-size:12.5px}
@@ -172,13 +193,17 @@
       <button id="zout" title="Udalji">−</button>
       <button id="zreset" title="Namjesti pogled">⟲</button>
       <button id="exportpos" title="Kopiraj trenutni raspored (za ugradnju u datoteku)">izvoz</button>
+      <button id="admintoggle" title="Uključi odabir okvirom i grupno premještanje" style="display:none">premjesti</button>
     </div>
     <div id="disclaimer">Stablo je napravljeno onako kako su mi ljudi govorili. Ako mislite da se neke veze ne slažu, slobodno predložite promjene. Ako želite da se vaše ili nečije ime ukloni, slobodno me kontaktirajte.</div>
+    <div id="adminbadge">ADMIN — odaberi okvirom, povuci grupu</div>
+    <div id="marquee"></div>
     <svg id="svg"><g id="root"><g id="edges"></g><g id="siblinks"></g><g id="nodes"></g></g></svg>
   </div>
   <div id="side">
     <div id="findbar">
       <div class="combo"><input id="findIn" class="combo-in" placeholder="🔍 Traži osobu…" autocomplete="off"><div id="findList" class="combo-list"></div></div>
+      <div id="memberCount"></div>
     </div>
     <div id="detail"><p class="empty">Traži ili klikni na čvor da vidiš podatke o osobi.</p></div>
     <div id="rel">
@@ -227,6 +252,7 @@ async function loadAndStart(){
     loginBox.style.display="none"; appBox.style.display="flex";
     if(!started){ started=true; startApp(d); }
     const exp=document.getElementById("exportpos"); if(exp) exp.style.display = isAdmin ? "" : "none";
+    const adm=document.getElementById("admintoggle"); if(adm) adm.style.display = isAdmin ? "" : "none";
     if(isAdmin){
       const dbg=document.getElementById("dbg");
       if(dbg){
@@ -564,7 +590,7 @@ function showPerson(id){
   rootG.classList.add("dim");
   n.g.classList.add("sel","keep");
   // razvrstaj susjede po tipu odnosa
-  const parentsOf=[], childrenOf=[], spousesOf=[];
+  const parentsOf=[], childrenOf=[], spousesOf=[], siblingsOf=[];
   n.edges.forEach(e=>{
     const o=other(e,n);
     if(e.type==="m"){ e.el.classList.add("rel-spouse","keep"); o.g.classList.add("rel-spouse","keep"); spousesOf.push(o); }
@@ -579,14 +605,39 @@ function showPerson(id){
       if(!seen.has(c)){ seen.add(c);
         c.g.classList.add("rel-sib","keep");
         const ln=el("line",{class:"siblink"}); sibG.appendChild(ln);
-        sibLinks.push({a:n,b:c,el:ln});
+        sibLinks.push({a:n,b:c,el:ln}); siblingsOf.push(c);
       }
+    }
+  }));
+  // zelene linije od supružnika do njihove zajedničke djece (drugi roditelj → dijete)
+  const childSet=new Set(childrenOf);
+  spousesOf.forEach(sp=>sp.edges.forEach(e=>{
+    if(e.type==="p" && e.s===sp && childSet.has(e.t)){
+      e.el.classList.add("rel-child","keep");
     }
   }));
   refreshSib();
   const d=document.getElementById("detail");
   let years=""; if(p.born) years+="* "+p.born; if(p.died) years+=(years?"   ":"")+"† "+p.died;
-  d.innerHTML='<p class="dn"></p><p class="dy"></p><p class="di"></p>';
+  // popis odnosa ispod opisa: broj + lista imena (s godinama)
+  const esc=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const yrOf=nd=>{ const q=persons[nd.id]; let y=""; if(q.born)y="* "+q.born; if(q.died)y+=(y?"  ":"")+"† "+q.died; return y; };
+  const sec=(label,arr,tagFn)=>{ if(!arr.length) return "";
+    const items=arr.map(nd=>{ const y=yrOf(nd), tag=tagFn?tagFn(nd):"";
+      return "<li data-id='"+esc(nd.id)+"'>"+esc(persons[nd.id].n)
+           +(tag?"<span class='rtag'>"+tag+"</span>":"")+(y?"<span class='ry'>"+y+"</span>":"")+"</li>"; }).join("");
+    return "<div class='relgrp'><div class='relh'>"+label+": "+arr.length+"</div><ul class='rell'>"+items+"</ul></div>"; };
+  // supružnike razvrstaj na žene/muževe po opisu (info); ostalo pod „Supružnici"
+  const wives=[], husbands=[], otherSp=[];
+  spousesOf.forEach(sp=>{ const inf=persons[sp.id].info||"";
+    if(/^\s*muž/i.test(inf)) husbands.push(sp);
+    else if(/žena/i.test(inf)) wives.push(sp);
+    else otherSp.push(sp); });
+  const selKey=groupKey(id);
+  const rel = sec("Roditelji",parentsOf) + sec("Žene",wives) + sec("Muževi",husbands)
+            + sec("Supružnici",otherSp) + sec("Djeca",childrenOf)
+            + sec("Braća i sestre",siblingsOf, nd=> groupKey(nd.id)===selKey ? "" : "(polubrat/polusestra)");
+  d.innerHTML='<p class="dn"></p><p class="dy"></p><p class="di"></p>'+(rel?'<div class="relbox">'+rel+'</div>':'');
   d.querySelector(".dn").textContent=p.n;
   d.querySelector(".dy").textContent=years||"godine nepoznate";
   d.querySelector(".di").textContent=p.info||"—";
@@ -650,20 +701,62 @@ function fit(){
 }
 
 let panning=false,panMoved=false,psx,psy,wheelT;
+
+/* ---- ADMIN mod (samo prijavljeni admin — gumb „premjesti"): okvirom se bira više
+        čvorova, povlačenje odabranog miče cijelu grupu (samo u sesiji, ne dira DEFAULT_POS) ---- */
+let adminMode=false;
+const groupSel=new Set();
+let marquee=null, groupDrag=null;
+const stageEl=document.getElementById("stage");
+const marqEl=document.getElementById("marquee");
+const badgeEl=document.getElementById("adminbadge");
+function clearGroup(){ groupSel.forEach(n=>n.g.classList.remove("gsel")); groupSel.clear(); }
+function setAdmin(on){ adminMode=on; stageEl.classList.toggle("admin",on);
+  if(badgeEl) badgeEl.style.display=on?"block":"none";
+  const b=document.getElementById("admintoggle"); if(b) b.classList.toggle("on",on);
+  if(!on){ clearGroup(); if(marqEl) marqEl.style.display="none"; marquee=null; } }
+const admBtn=document.getElementById("admintoggle");
+if(admBtn) admBtn.onclick=()=>setAdmin(!adminMode);
+
 svg.addEventListener("mousedown",e=>{ if(e.target.closest(".node"))return;
+  if(adminMode){ const r=stageEl.getBoundingClientRect();
+    marquee={x0:e.clientX-r.left, y0:e.clientY-r.top};
+    marqEl.style.left=marquee.x0+"px"; marqEl.style.top=marquee.y0+"px";
+    marqEl.style.width="0px"; marqEl.style.height="0px"; marqEl.style.display="block";
+    if(!e.shiftKey) clearGroup(); return; }
   panning=true;panMoved=false;psx=e.clientX-view.tx;psy=e.clientY-view.ty;svg.classList.add("grabbing"); rootG.classList.add("moving"); });
-svg.addEventListener("click",e=>{ if(!e.target.closest(".node") && !panMoved && selected) clearSelection(); });
+svg.addEventListener("click",e=>{ if(!e.target.closest(".node") && !panMoved && !adminMode && selected) clearSelection(); });
 let dragNode=null,draggedMoved=false,goffx,goffy;
-function startNodeDrag(ev,n){ ev.stopPropagation(); dragNode=n; draggedMoved=false; rootG.classList.add("moving");
+function startNodeDrag(ev,n){ ev.stopPropagation(); draggedMoved=false; rootG.classList.add("moving");
+  if(adminMode && groupSel.has(n)){
+    const wx=(ev.clientX-view.tx)/view.s, wy=(ev.clientY-view.ty)/view.s;
+    const base=new Map(); groupSel.forEach(g=>base.set(g,{x:g.x,y:g.y}));
+    groupDrag={wx,wy,base}; return; }
+  if(adminMode) clearGroup();
+  dragNode=n;
   const gx=(ev.clientX-view.tx)/view.s, gy=(ev.clientY-view.ty)/view.s;
   goffx=gx-n.x; goffy=gy-n.y; }
 window.addEventListener("mousemove",e=>{
+  if(groupDrag){ draggedMoved=true;
+    const wx=(e.clientX-view.tx)/view.s, wy=(e.clientY-view.ty)/view.s;
+    const dx=wx-groupDrag.wx, dy=wy-groupDrag.wy;
+    groupDrag.base.forEach((p,g)=>{ g.x=p.x+dx; g.y=p.y+dy; }); refresh(); return; }
+  if(marquee){ const r=stageEl.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
+    marqEl.style.left=Math.min(x,marquee.x0)+"px"; marqEl.style.top=Math.min(y,marquee.y0)+"px";
+    marqEl.style.width=Math.abs(x-marquee.x0)+"px"; marqEl.style.height=Math.abs(y-marquee.y0)+"px"; return; }
   if(dragNode){ draggedMoved=true;
     dragNode.x=(e.clientX-view.tx)/view.s-goffx;
     dragNode.y=(e.clientY-view.ty)/view.s-goffy; refresh(); return; }
   if(panning){ panMoved=true; view.tx=e.clientX-psx; view.ty=e.clientY-psy; apply(); }
 });
-window.addEventListener("mouseup",()=>{ panning=false;dragNode=null;svg.classList.remove("grabbing"); rootG.classList.remove("moving"); });
+window.addEventListener("mouseup",e=>{
+  if(marquee){ const r=stageEl.getBoundingClientRect();
+    const x1=Math.min(marquee.x0,e.clientX-r.left), x2=Math.max(marquee.x0,e.clientX-r.left);
+    const y1=Math.min(marquee.y0,e.clientY-r.top),  y2=Math.max(marquee.y0,e.clientY-r.top);
+    nodes.forEach(n=>{ const sx=n.x*view.s+view.tx, sy=n.y*view.s+view.ty;
+      if(sx>=x1&&sx<=x2&&sy>=y1&&sy<=y2){ groupSel.add(n); n.g.classList.add("gsel"); } });
+    marqEl.style.display="none"; marquee=null; }
+  panning=false;dragNode=null;groupDrag=null;svg.classList.remove("grabbing"); rootG.classList.remove("moving"); });
 svg.addEventListener("wheel",e=>{
   e.preventDefault();
   rootG.classList.add("moving"); clearTimeout(wheelT); wheelT=setTimeout(()=>rootG.classList.remove("moving"),180);
@@ -822,7 +915,7 @@ document.getElementById("exportpos").onclick=()=>{
   function hintFor(id){
     const sp=[]; marriages.forEach(([a,b])=>{ if(a===id)sp.push(b); else if(b===id)sp.push(a); });
     if(sp.length) return "⚭ "+sp.map(x=>persons[x].n).join(", ");
-    const pa=parentsOfNode[id]; if(pa&&pa.length) return "dijete: "+pa.map(x=>persons[x].n).join(" i ");
+    const pa=parentsOfNode[id]; if(pa&&pa.length) return "roditelji: "+pa.map(x=>persons[x].n).join(" i ");
     return "";
   }
   // pretraživi combobox: input.value = tekst, input._id = odabrani id
@@ -861,6 +954,12 @@ document.getElementById("exportpos").onclick=()=>{
   }
   const findIn=document.getElementById("findIn");
   if(findIn) setupCombo(findIn, document.getElementById("findList"), id=>{ centerOn(id); showPerson(id); }, findOpts);
+  // klik na ime u popisu odnosa -> označi tu osobu i centriraj je na mapi
+  const detEl=document.getElementById("detail");
+  if(detEl) detEl.addEventListener("click",e=>{ const li=e.target.closest("li[data-id]"); if(!li) return;
+    const id=li.getAttribute("data-id"); if(nodeById[id]){ centerOn(id); showPerson(id); } });
+  const mc=document.getElementById("memberCount");
+  if(mc) mc.textContent="Ukupan broj članova: "+Object.keys(persons).length;
 
   // preci: id -> koliko koljena gore (self=0)
   function ancestors(id){ const d={}; d[id]=0; const q=[id];
