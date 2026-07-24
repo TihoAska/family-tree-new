@@ -10,6 +10,14 @@
     --gold:#e8b45e; --line:rgba(150,180,230,.22); --mline:rgba(232,180,94,.55);
   }
   *{box-sizing:border-box}
+  /* scrollbar u temi: tanak, bez strelica, plavkast */
+  *{scrollbar-width:thin;scrollbar-color:#33507f transparent}
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:#33507f;border-radius:8px}
+  ::-webkit-scrollbar-thumb:hover{background:#456aa8}
+  ::-webkit-scrollbar-button{display:none;width:0;height:0}
+  ::-webkit-scrollbar-corner{background:transparent}
   html,body{margin:0;height:100%;font-family:"Segoe UI",system-ui,sans-serif;
             color:var(--ink);background:var(--bg);overflow:hidden}
   #app{display:flex;height:100%}
@@ -21,8 +29,11 @@
 
   .edge{stroke:var(--line);stroke-width:1.4;transition:stroke .3s ease,opacity .3s ease,stroke-width .3s ease}
   .edge.marriage{stroke:var(--mline);stroke-width:2.2}
-  .edge.hi{stroke:#ffffff;stroke-width:2.6;filter:drop-shadow(0 0 4px rgba(255,255,255,.85))}
-  .edge.marriage.hi{stroke:#ffdb99;filter:drop-shadow(0 0 5px rgba(255,219,153,.9))}
+  .edge.hi{stroke:#ffffff;stroke-width:2.6}
+  .edge.marriage.hi{stroke:#ffdb99}
+  /* intro: stablo se pojavi (fade in) */
+  #root{opacity:0}
+  #root.ready{opacity:1;transition:opacity 2s ease}
   /* fokus nakon klika: ostali zasjenjeni */
   #root.dim .node{opacity:.15;transition:opacity .25s}
   #root.dim .edge{opacity:.05;transition:opacity .25s}
@@ -35,11 +46,10 @@
   .node.rel-parent .body{stroke:#5db4e0;stroke-width:3}
   .node.rel-child  .body{stroke:#63d6a6;stroke-width:3}
   .node.rel-sib    .body{stroke:#f0996b;stroke-width:3}
-  .edge.rel-spouse{stroke:#e8b45e;stroke-width:2.8;filter:drop-shadow(0 0 5px rgba(232,180,94,.9))}
-  .edge.rel-parent{stroke:#5db4e0;stroke-width:2.8;filter:drop-shadow(0 0 5px rgba(93,180,224,.9))}
-  .edge.rel-child {stroke:#63d6a6;stroke-width:2.8;filter:drop-shadow(0 0 5px rgba(99,214,166,.9))}
-  .siblink{stroke:#f0996b;stroke-width:2;stroke-dasharray:5 5;opacity:.9;
-           filter:drop-shadow(0 0 3px rgba(240,153,107,.7))}
+  .edge.rel-spouse{stroke:#e8b45e;stroke-width:2.8}
+  .edge.rel-parent{stroke:#5db4e0;stroke-width:2.8}
+  .edge.rel-child {stroke:#63d6a6;stroke-width:2.8}
+  .siblink{stroke:#f0996b;stroke-width:2;stroke-dasharray:5 5;opacity:.9}
 
   .node{cursor:pointer}
   .node .body{stroke:rgba(255,255,255,.30);stroke-width:1.3;transition:filter .3s ease}
@@ -118,6 +128,10 @@
   #relGo:hover{background:#254a8f}
   #relOut{margin-top:10px;font-size:12.5px;line-height:1.5;color:#dbe4f5}
   #relOut .relpath{color:var(--muted);font-size:11.5px}
+  #relOut .relcoef{color:var(--gold);font-size:11.5px;display:block;margin-top:4px}
+  #hint3d{position:absolute;left:0;right:0;bottom:60px;z-index:5;display:none;text-align:center;pointer-events:none}
+  #hint3d span{display:inline-block;font-size:12.5px;color:var(--ink);background:#0b1836dd;
+        padding:6px 14px;border-radius:8px;border:1px solid #33507f}
   #notes{padding:14px 18px;overflow:auto;flex:1}
   #notes h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 8px}
   #notes ul{margin:0 0 14px;padding-left:18px}
@@ -152,6 +166,11 @@
   #login button:hover{background:#254a8f}
   #loginMsg{font-size:12px;color:#ff8f8f}
   #loginMsg:empty{display:none}
+  #loginLoading{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;
+    gap:14px;color:#cdddff;font-size:14px}
+  #loginLoading .spin{width:34px;height:34px;border-radius:50%;border:3px solid #33507f;
+    border-top-color:#f0c96b;animation:lspin .8s linear infinite}
+  @keyframes lspin{to{transform:rotate(360deg)}}
   #logout{margin:8px 18px 14px;background:#2a1520;color:#ff9a9a;border:1px solid #5a2e3e;
     border-radius:8px;padding:9px;font-size:13px;cursor:pointer}
   #logout:hover{background:#3a1c2a}
@@ -176,12 +195,12 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-<div id="login"><canvas id="loginBg"></canvas><form id="loginForm">
+<div id="login"><canvas id="loginBg"></canvas><form id="loginForm" style="display:none">
   <input id="userIn" type="email" placeholder="Email" autocomplete="username">
   <input id="pw" type="password" placeholder="Lozinka" autocomplete="current-password">
   <button type="submit">Login</button>
   <div id="loginMsg"></div>
-</form></div>
+</form><div id="loginLoading"><div class="spin"></div><div>Učitavanje stabla…</div></div></div>
 <div id="app" style="display:none">
   <div id="menuBtn">☰</div>
   <div id="sideBackdrop"></div>
@@ -192,10 +211,11 @@
       <button id="zin" title="Približi">+</button>
       <button id="zout" title="Udalji">−</button>
       <button id="zreset" title="Namjesti pogled">⟲</button>
-      <button id="exportpos" title="Kopiraj trenutni raspored (za ugradnju u datoteku)">izvoz</button>
+      <button id="exportpos" title="Kopiraj trenutni raspored (za ugradnju u datoteku)" style="display:none">izvoz</button>
       <button id="admintoggle" title="Uključi odabir okvirom i grupno premještanje" style="display:none">premjesti</button>
     </div>
     <div id="disclaimer">Stablo je napravljeno onako kako su mi ljudi govorili. Ako mislite da se neke veze ne slažu, slobodno predložite promjene. Ako želite da se vaše ili nečije ime ukloni, slobodno me kontaktirajte.</div>
+    <div id="hint3d"><span>🖱️ Lijevi klik: micanje &nbsp;•&nbsp; Desni klik: rotacija &nbsp;•&nbsp; Kotačić: zoom</span></div>
     <div id="adminbadge">ADMIN — odaberi okvirom, povuci grupu</div>
     <div id="marquee"></div>
     <svg id="svg"><g id="root"><g id="edges"></g><g id="siblinks"></g><g id="nodes"></g></g></svg>
@@ -243,35 +263,43 @@ const loginBox=document.getElementById("login"), appBox=document.getElementById(
       loginMsg=document.getElementById("loginMsg"), loginForm=document.getElementById("loginForm");
 let started=false;
 async function fetchData(){ const {data,error}=await sb.from("tree").select("data").eq("id",1).single(); if(error) throw error; return data.data; }
+function applyAdmin(user){
+  const meta = user ? (user.app_metadata||{}) : {};
+  const isAdmin = !!(meta.admin===true || meta.role==="admin");
+  const exp=document.getElementById("exportpos"); if(exp) exp.style.display = isAdmin ? "" : "none";
+  const adm=document.getElementById("admintoggle"); if(adm) adm.style.display = isAdmin ? "" : "none";
+  if(isAdmin){
+    const dbg=document.getElementById("dbg");
+    if(dbg){
+      dbg.style.display="block";
+      const upd=()=>{ const vv=window.visualViewport;
+        dbg.textContent=
+          "innerH: "+innerHeight+"\n"+
+          "app.offsetH: "+appBox.offsetHeight+"\n"+
+          "doc.clientH: "+document.documentElement.clientHeight+"\n"+
+          "screen.H: "+screen.height+"\n"+
+          "visualVP.H: "+(vv?Math.round(vv.height):"-")+"\n"+
+          "dpr: "+(window.devicePixelRatio||1); };
+      upd();
+      window.addEventListener("resize",upd);
+      window.addEventListener("orientationchange",upd);
+      if(window.visualViewport) window.visualViewport.addEventListener("resize",upd);
+    }
+  }
+}
 async function loadAndStart(){
   try{
-    const d=await fetchData();
-    const {data:{user}}=await sb.auth.getUser();
-    const meta = user ? (user.app_metadata||{}) : {};
-    const isAdmin = !!(meta.admin===true || meta.role==="admin");
+    // paralelno: dohvat podataka + validacija korisnika (ne cekamo user prije prikaza stabla)
+    const dP=fetchData();
+    const uP=sb.auth.getUser().then(r=>r.data.user).catch(()=>null);
+    const d=await dP;                                   // stablo se prikaze cim podaci stignu
     loginBox.style.display="none"; appBox.style.display="flex";
     if(!started){ started=true; startApp(d); }
-    const exp=document.getElementById("exportpos"); if(exp) exp.style.display = isAdmin ? "" : "none";
-    const adm=document.getElementById("admintoggle"); if(adm) adm.style.display = isAdmin ? "" : "none";
-    if(isAdmin){
-      const dbg=document.getElementById("dbg");
-      if(dbg){
-        dbg.style.display="block";
-        const upd=()=>{ const vv=window.visualViewport;
-          dbg.textContent=
-            "innerH: "+innerHeight+"\n"+
-            "app.offsetH: "+appBox.offsetHeight+"\n"+
-            "doc.clientH: "+document.documentElement.clientHeight+"\n"+
-            "screen.H: "+screen.height+"\n"+
-            "visualVP.H: "+(vv?Math.round(vv.height):"-")+"\n"+
-            "dpr: "+(window.devicePixelRatio||1); };
-        upd();
-        window.addEventListener("resize",upd);
-        window.addEventListener("orientationchange",upd);
-        if(window.visualViewport) window.visualViewport.addEventListener("resize",upd);
-      }
-    }
-  }catch(e){ loginMsg.textContent="Greška pri dohvatu podataka. Osvježi stranicu."; console.error(e); }
+    uP.then(applyAdmin);                                 // admin gumbi se otkriju usput
+  }catch(e){
+    const ll=document.getElementById("loginLoading"); if(ll) ll.style.display="none";
+    loginForm.style.display=""; loginMsg.textContent="Greška pri dohvatu podataka. Osvježi stranicu."; console.error(e);
+  }
 }
 loginForm.addEventListener("submit", async e=>{
   e.preventDefault(); loginMsg.textContent="Prijava…";
@@ -280,7 +308,11 @@ loginForm.addEventListener("submit", async e=>{
   if(error){ loginMsg.textContent="Kriv email ili lozinka."; return; }
   loadAndStart();
 });
-sb.auth.getSession().then(({data})=>{ if(data.session) loadAndStart(); });
+// ako postoji session -> odmah kreni (loading spinner, bez bljeska login forme); inace prikazi login
+const loginLoading=document.getElementById("loginLoading");
+function showLoginForm(){ if(loginLoading) loginLoading.style.display="none"; loginForm.style.display=""; }
+sb.auth.getSession().then(({data})=>{ if(data.session) loadAndStart(); else showLoginForm(); })
+  .catch(showLoginForm);
 const logoutBtn=document.getElementById("logout");
 if(logoutBtn) logoutBtn.addEventListener("click", async ()=>{ await sb.auth.signOut(); location.reload(); });
 
@@ -673,12 +705,6 @@ function refresh(){
 
 // --- notes panel ---
 document.getElementById("notes").innerHTML=`
-  <h2>Što znače linije</h2>
-  <ul>
-    <li><b>Zlatni brid</b> = brak. <b>Tanki brid</b> = veza roditelj → dijete.</li>
-    <li><b>Braća i sestre</b> nemaju izravan brid — prepoznaju se po istom roditelju. Klikni osobu da ih se posebno istakne.</li>
-    <li><b>*</b> godina rođenja, <b>†</b> godina smrti.</li>
-  </ul>
   <h2>Boje odnosa (kad klikneš čvor)</h2>
   <ul style="list-style:none;padding-left:0">
     <li><span class="swatch" style="background:#e8b45e"></span>supružnik (brak)</li>
@@ -797,7 +823,7 @@ window.addEventListener("resize",fit);
 const stage=document.getElementById("stage");
 const starCanvas=document.getElementById("stars");
 const sctx=starCanvas.getContext("2d");
-let stars=[], rot=0; const MAXW=4200;   // zvijezde žive u "svemirskim" (world) koordinatama oko Sunca
+let stars=[], rot=0, introStart=null; const MAXW=4200;   // zvijezde žive u "svemirskim" (world) koordinatama oko Sunca
 function initStars(){
   starCanvas.width=stage.clientWidth; starCanvas.height=stage.clientHeight;
   const count=Math.min(18000, Math.round(Math.PI*MAXW*MAXW/1900));
@@ -826,7 +852,11 @@ function drawStars(t){
   const dt=lastT?Math.min(t-lastT,60):16; lastT=t;
   const W=starCanvas.width, H=starCanvas.height;
   sctx.clearRect(0,0,W,H);
-  rot+=0.00045;                                       // vrtnja svemira
+  // intro: na početku brza vrtnja koja usporava do normalne brzine (~5 s)
+  if(introStart===null) introStart=t;
+  let spin=0.00045; const ie=t-introStart, IDUR=5000;
+  if(ie<IDUR){ const k=1-ie/IDUR; spin=0.00045*(1+13*k*k); }
+  rot+=spin;                                          // vrtnja svemira
   // PARALAKSA: pozadina se miče i zumira sporije od stabla (kao dalji sloj svemira)
   const P=0.45, s0=1, cx=W/2, cy=H/2;
   const vs =(1-P)*s0 + P*view.s;
@@ -888,6 +918,7 @@ function applySaved(){
 }
 
 build(); applySaved(); refresh(); fit();
+requestAnimationFrame(()=>rootG.classList.add("ready"));   // fade in stabla
 
 // izvoz trenutnog rasporeda (kopiraj JSON pa ga ugradimo kao zadani)
 document.getElementById("exportpos").onclick=()=>{
@@ -998,7 +1029,7 @@ document.getElementById("exportpos").onclick=()=>{
     const a=selA._id, b=selB._id;
     if(!a||!b){ out.textContent="Odaberi obje osobe (upiši i klikni ime iz liste)."; return; }
     const An=persons[a].n, Bn=persons[b].n;
-    let desc;
+    let desc, coefHtml="";
     if(a===b) desc="<b>Ista osoba.</b>";
     else if(spouseSet.has(a+"|"+b)) desc="<b>"+Bn+"</b> je supružnik (muž / žena) od <b>"+An+"</b>.";
     else {
@@ -1006,6 +1037,13 @@ document.getElementById("exportpos").onclick=()=>{
       for(const id in anA){ if(anB[id]!==undefined){ const s=anA[id]+anB[id]; if(s<best){best=s;lca=id;} } }
       if(lca) desc="<b>"+Bn+"</b> je "+bloodTerm(anA[lca],anB[lca])+" od <b>"+An+"</b> (zajednički predak: "+persons[lca].n+").";
       else desc="<b>"+Bn+"</b> i <b>"+An+"</b> povezani su preko braka (rod po tazbini) ili daljom vezom.";
+      // koeficijent srodstva (Wright): Σ (1/2)^(dA+dB) po najbližim zajedničkim precima
+      const commonSet=new Set(); for(const id in anA){ if(anB[id]!==undefined) commonSet.add(id); }
+      const redundant=new Set();
+      commonSet.forEach(c=>{ const ac=ancestors(c); for(const p in ac){ if(p!==c && commonSet.has(p)) redundant.add(p); } });
+      let r=0; commonSet.forEach(c=>{ if(!redundant.has(c)) r+=Math.pow(0.5, anA[c]+anB[c]); });
+      if(r>0){ const pc=r*100, sv=(pc>=1?pc.toFixed(1):pc>=0.1?pc.toFixed(2):pc.toFixed(3)).replace(".",",");
+        coefHtml="<span class='relcoef'>Koeficijent srodstva ≈ "+sv+" % zajedničke DNK</span>"; }
     }
     const path=shortestPath(a,b);
     clearMarks();
@@ -1017,7 +1055,7 @@ document.getElementById("exportpos").onclick=()=>{
     }
     out.innerHTML=desc+(path
       ? "<br><span class='relpath'>"+path.map(id=>persons[id].n).join(" → ")+"  ("+(path.length-1)+" veza)</span>"
-      : "<br>Nisu povezani u stablu.");
+      : "<br>Nisu povezani u stablu.")+coefHtml;
   }
   go.addEventListener("click",compute);
 })();
@@ -1027,7 +1065,7 @@ document.getElementById("exportpos").onclick=()=>{
    ========================================================================== */
 const TREE3D=(function(){
   let inited=false, ok=false, renderer, scene, camera, controls, raf=null;
-  const meshes={}, labels={}; let lineSeg=null, starPts=null, hovered=null, raycaster, pointer, focusId=null;
+  const meshes={}, labels={}; let lineSeg=null, starPts=null, hovered=null, raycaster, pointer, focusId=null, downX=0, downY=0;
   let cMarrDef,cParDef,cSpouse,cParents,cChildren,cHiWhite,cHiGold,cDim, sibSeg=null;
   const SH=155;
   const childrenByParent={}; parents.forEach(([p,c])=>{(childrenByParent[p]=childrenByParent[p]||[]).push(c);});
@@ -1060,48 +1098,8 @@ const TREE3D=(function(){
   }
 
   function layout3d(){
-    const byGen={}; clusters.forEach(c=>{(byGen[c.gen]=byGen[c.gen]||[]).push(c);});
-    Object.keys(byGen).forEach(gk=>{
-      const g=+gk, arr=byGen[gk], R=(g===0?70:g*SH), n=arr.length;
-      arr.forEach((c,i)=>{
-        if(c===sunCluster){ c.px=0;c.py=0;c.pz=0; return; }
-        const y=(n>1?((i*2/n)-1+1/n):0), rr=Math.sqrt(Math.max(0,1-y*y)), phi=i*2.399963;
-        c.px=Math.cos(phi)*rr*R; c.py=y*R; c.pz=Math.sin(phi)*rr*R;
-      });
-    });
-    const K=155; let temp=300; const cool=0.965, steps=260, kR=0.10;
-    for(let s=0;s<steps;s++){
-      clusters.forEach(c=>{c.fx=0;c.fy=0;c.fz=0;});
-      for(let i=0;i<clusters.length;i++) for(let j=i+1;j<clusters.length;j++){
-        const a=clusters[i],b=clusters[j];
-        let dx=a.px-b.px,dy=a.py-b.py,dz=a.pz-b.pz,d=Math.hypot(dx,dy,dz)||0.5;
-        const f=(K*K)/d, ux=dx/d,uy=dy/d,uz=dz/d;
-        a.fx+=ux*f;a.fy+=uy*f;a.fz+=uz*f; b.fx-=ux*f;b.fy-=uy*f;b.fz-=uz*f;
-      }
-      for(const e of cedges){ const a=e.s,b=e.t;
-        let dx=a.px-b.px,dy=a.py-b.py,dz=a.pz-b.pz,d=Math.hypot(dx,dy,dz)||0.5;
-        const f=(d*d)/e.len, ux=dx/d,uy=dy/d,uz=dz/d;
-        a.fx-=ux*f;a.fy-=uy*f;a.fz-=uz*f; b.fx+=ux*f;b.fy+=uy*f;b.fz+=uz*f;
-      }
-      for(const c of clusters){ if(c===sunCluster) continue;
-        const r=Math.hypot(c.px,c.py,c.pz)||0.5, tgt=(c.gen===0?90:c.gen*SH), f=kR*(tgt-r);
-        c.fx+=c.px/r*f; c.fy+=c.py/r*f; c.fz+=c.pz/r*f;
-      }
-      for(const c of clusters){ if(c===sunCluster) continue;
-        let d=Math.hypot(c.fx,c.fy,c.fz)||0.01, m=Math.min(d,temp);
-        c.px+=c.fx/d*m; c.py+=c.fy/d*m; c.pz+=c.fz/d*m;
-      }
-      temp*=cool;
-    }
-    // partneri jedan uz drugoga (tangencijalno na sferu)
-    clusters.forEach(c=>{
-      if(c.members.length===1){ const n=c.members[0]; n.x3=c.px;n.y3=c.py;n.z3=c.pz; return; }
-      const [A,B]=c.members; let rr=Math.hypot(c.px,c.py,c.pz)||1, ux=c.px/rr,uy=c.py/rr,uz=c.pz/rr;
-      let tx=uy,ty=-ux,tz=0, tn=Math.hypot(tx,ty,tz); if(tn<1e-3){tx=1;ty=0;tz=0;tn=1;} tx/=tn;ty/=tn;tz/=tn;
-      const off=(A.r+B.r)/2+9;
-      A.x3=c.px+tx*off; A.y3=c.py+ty*off; A.z3=c.pz+tz*off;
-      B.x3=c.px-tx*off; B.y3=c.py-ty*off; B.z3=c.pz-tz*off;
-    });
+    // ploha položena vodoravno (kao stol): 2D x -> x, 2D y -> dubina z, visina y = 0
+    nodes.forEach(n=>{ n.x3=n.x; n.y3=0; n.z3=n.y; });
   }
 
   function makeLabel(text){
@@ -1129,10 +1127,38 @@ const TREE3D=(function(){
       stage.appendChild(renderer.domElement);
       scene=new THREE.Scene();
       camera=new THREE.PerspectiveCamera(55, stage.clientWidth/stage.clientHeight, 1, 40000);
-      const maxR=Math.max(...nodes.map(n=>Math.hypot(n.x3,n.y3,n.z3)))||500;
-      camera.position.set(maxR*0.6, maxR*0.5, maxR*2.3);
+      // sredina i polumjer vodoravne plohe (XZ ravnina)
+      let minx=Infinity,maxx=-Infinity,minz=Infinity,maxz=-Infinity;
+      nodes.forEach(n=>{ if(n.x3<minx)minx=n.x3; if(n.x3>maxx)maxx=n.x3; if(n.z3<minz)minz=n.z3; if(n.z3>maxz)maxz=n.z3; });
+      const cx=(minx+maxx)/2, cz=(minz+maxz)/2, R=Math.max(maxx-minx,maxz-minz)/2||500;
+      camera.position.set(cx, R*1.5, cz+R*1.9);        // iznad i ispred sredine, pogled prema dolje pod kutom
       controls=new THREE.OrbitControls(camera, renderer.domElement);
+      controls.target.set(cx,0,cz);
       controls.enableDamping=true; controls.dampingFactor=0.08;
+      // samo rotacija oko vertikalne (Y) osi: zaključaj nagib; lijevi=micanje, desni=rotacija
+      const off=camera.position.clone().sub(controls.target);
+      const pol=Math.acos(Math.max(-1,Math.min(1, off.y/(off.length()||1))));
+      controls.minPolarAngle=pol; controls.maxPolarAngle=pol;
+      controls.enablePan=true; controls.screenSpacePanning=false;
+      controls.mouseButtons={ LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+      controls.enableZoom=false;   // vlastiti zoom prema kursoru
+      controls.update();
+      // zoom prema kursoru: skaliraj kameru i cilj oko točke plohe ispod kursora
+      const zPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0), zRay=new THREE.Raycaster(), zHit=new THREE.Vector3();
+      renderer.domElement.addEventListener("wheel", ev=>{
+        ev.preventDefault();
+        const rc=renderer.domElement.getBoundingClientRect();
+        const nx=((ev.clientX-rc.left)/rc.width)*2-1, ny=-((ev.clientY-rc.top)/rc.height)*2+1;
+        zRay.setFromCamera({x:nx,y:ny}, camera);
+        if(!zRay.ray.intersectPlane(zPlane, zHit)) return;
+        const f=ev.deltaY<0?0.88:1/0.88;
+        const oc=camera.position.clone(), ot=controls.target.clone();
+        camera.position.sub(zHit).multiplyScalar(f).add(zHit);
+        controls.target.sub(zHit).multiplyScalar(f).add(zHit);
+        const nd=camera.position.distanceTo(controls.target);
+        if(nd<R*0.15||nd>R*8){ camera.position.copy(oc); controls.target.copy(ot); }
+        controls.update();
+      }, {passive:false});
       scene.add(new THREE.AmbientLight(0xffffff,0.8));
       const pl=new THREE.PointLight(0xffffff,0.7); scene.add(pl);
       const geo=new THREE.SphereGeometry(1,24,24);
@@ -1163,6 +1189,7 @@ const TREE3D=(function(){
       scene.add(starPts);
       raycaster=new THREE.Raycaster(); pointer=new THREE.Vector2();
       renderer.domElement.addEventListener("pointermove",onMove);
+      renderer.domElement.addEventListener("pointerdown",e=>{ downX=e.clientX; downY=e.clientY; });
       renderer.domElement.addEventListener("click",onClick);
       window.addEventListener("resize",onResize);
       ok=true;
@@ -1183,7 +1210,8 @@ const TREE3D=(function(){
       renderer.domElement.style.cursor=id?"pointer":"grab";
       applyEdgeColors(hovered);
     } }
-  function onClick(e){ const id=pick(e); if(id){ fillDetail(id); focus3d(id); } else clearFocus3d(); }
+  function onClick(e){ if(Math.hypot(e.clientX-downX,e.clientY-downY)>5) return;  // bila rotacija/micanje, ne klik
+    const id=pick(e); if(id){ fillDetail(id); focus3d(id); } else clearFocus3d(); }
   function focus3d(id){ focusId=id;
     const nb=new Set([id]);
     edges.forEach(e=>{ if(e.s.id===id) nb.add(e.t.id); else if(e.t.id===id) nb.add(e.s.id); });
@@ -1208,13 +1236,16 @@ const TREE3D=(function(){
 (function(){
   let mode="2d"; const btn=document.getElementById("toggle3d");
   const svgEl=document.getElementById("svg"), starEl=document.getElementById("stars");
+  const hint3d=document.getElementById("hint3d"), disc=document.getElementById("disclaimer");
   btn.addEventListener("click",()=>{
     if(mode==="2d"){
       if(!TREE3D.available()){ alert("3D prikaz treba internet (učitava Three.js). Provjeri vezu pa pokušaj ponovno."); return; }
       if(!TREE3D.show()){ alert("3D se nije uspio pokrenuti (WebGL?). 2D i dalje radi."); return; }
       mode="3d"; svgEl.style.display="none"; starEl.style.display="none"; btn.textContent="2D";
+      if(hint3d){ hint3d.style.bottom=((disc?disc.offsetHeight:0)+10)+"px"; hint3d.style.display="block"; }
     } else {
       TREE3D.hide(); mode="2d"; svgEl.style.display=""; starEl.style.display=""; btn.textContent="3D";
+      if(hint3d) hint3d.style.display="none";
     }
   });
 })();
