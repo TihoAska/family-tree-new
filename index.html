@@ -59,11 +59,9 @@
   .node .yr{fill:var(--muted);font-size:10px;text-anchor:middle;
             paint-order:stroke;stroke:#081124;stroke-width:3px;pointer-events:none}
   .node .body{filter:none}
-  .node.sun .body{fill:#ffcf5e !important;
-    filter:drop-shadow(0 0 18px rgba(255,193,70,.95)) drop-shadow(0 0 40px rgba(255,150,40,.6))}
   .node.eldest .body{filter:drop-shadow(0 0 8px rgba(165,200,255,.7)) drop-shadow(0 0 16px rgba(140,175,235,.4))}
   /* dok se pomiče/zumira: bez skupih glow filtera (glatko) */
-  #root.moving .node .body,#root.moving .node.sun .body{filter:none}
+  #root.moving .node .body{filter:none}
   .node:hover .body{filter:drop-shadow(0 0 10px #fff) drop-shadow(0 0 5px #fff)}
   .node:hover .lbl{fill:#fff}
   .node.sel .body{stroke:#fff;stroke-width:2.5}
@@ -76,10 +74,24 @@
         padding:3px 8px;border-radius:6px;letter-spacing:.05em}
   #stage.admin{cursor:crosshair}
 
-  #controls{position:absolute;left:14px;top:14px;display:flex;gap:6px;z-index:5}
+  #controls{position:absolute;left:14px;top:14px;display:flex;flex-wrap:wrap;gap:6px;max-width:calc(100% - 28px);z-index:5}
   #controls button{height:34px;min-width:34px;padding:0 10px;border:1px solid #33507f;
         background:#12244d;border-radius:8px;font-size:14px;cursor:pointer;color:var(--ink)}
   #controls button:hover{background:#1b356b}
+  #controls .swtch{position:relative;display:flex;align-items:center;gap:8px;height:34px;padding:0 12px 0 10px;
+        border:1px solid #33507f;background:#12244d;border-radius:8px;font-size:14px;color:var(--ink);cursor:pointer;user-select:none}
+  #controls .swtch:hover{background:#1b356b}
+  #controls .swtch input{position:absolute;opacity:0;pointer-events:none}
+  .swtrack{position:relative;width:34px;height:18px;border-radius:9px;background:#33507f;transition:background .2s;flex:none}
+  .swknob{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#dbe4f5;transition:transform .2s,background .2s}
+  .swtch input:checked + .swtrack{background:#b98b1e}
+  .swtch input:checked + .swtrack .swknob{transform:translateX(16px);background:#fff3d0}
+  .swtch input:focus-visible + .swtrack{outline:2px solid #ffd27a}
+  #controls .expwrap{position:relative}
+  #exportmenu{position:absolute;top:40px;left:0;display:none;flex-direction:column;gap:4px;background:#0e1e42;
+    border:1px solid #33507f;border-radius:8px;padding:6px;z-index:8;box-shadow:0 8px 24px #000a}
+  #exportmenu.open{display:flex}
+  #exportmenu button{white-space:nowrap;text-align:left}
   #controls button.on{background:#3a2a00;border-color:#b98b1e;color:#ffd27a}
   #hint{position:absolute;right:14px;bottom:12px;font-size:11px;color:var(--muted);
         background:#0b1836cc;padding:4px 8px;border-radius:6px;z-index:5}
@@ -88,12 +100,40 @@
         padding:8px 14px;z-index:5}
 
   #side{width:320px;background:var(--panel);border-left:1px solid #1c2f57;
-        display:flex;flex-direction:column;overflow:hidden}
+        display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
   #side header{padding:16px 18px 10px;border-bottom:1px solid #1c2f57}
   #side header h1{margin:0;font-size:18px;color:var(--gold)}
   #side header p{margin:4px 0 0;font-size:12px;color:var(--muted)}
-  #detail{padding:14px 18px;border-bottom:1px solid #1c2f57;min-height:0;
-          flex:1 1 auto;overflow-y:auto}
+  #detail{padding:14px 18px;border-bottom:1px solid #1c2f57;min-height:120px;
+          flex:1 0 auto}
+  #detail .pencil{background:none;border:0;color:var(--gold);cursor:pointer;font-size:15px;padding:0 4px;margin-left:4px}
+  #detail .pencil:hover{color:#fff}
+  #detail .ed{width:100%;box-sizing:border-box;background:#0c1a3a;color:#dbe4f5;border:1px solid #33507f;border-radius:6px;padding:5px 7px;font:inherit;font-size:13px}
+  #detail .ed-i{min-height:90px;resize:vertical;margin-top:4px}
+  #detail .edyr{display:flex;gap:6px;margin:4px 0}
+  #detail .estat{font-size:12px;margin-left:6px}
+  #detail .addrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px}
+  #detail .addrow .al{font-size:11px;color:var(--muted);margin-right:2px}
+  #detail .addbtn{background:#12244d;color:#dbe4f5;border:1px solid #33507f;border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer}
+  #detail .addbtn:hover:not(:disabled){background:#1b356b}
+  #detail .delbtn{color:#ff9a9a;border-color:#5a2e3e;background:#2a1520}
+  #detail .delbtn:hover:not(:disabled){background:#3a1c2a}
+  #detail .addbtn:disabled{opacity:.45;cursor:not-allowed}
+  #detail .addform{margin-top:10px;padding:10px;border:1px solid #33507f;border-radius:8px;background:#0e1e42}
+  #detail .addform .aft{font-size:12px;color:var(--gold);font-weight:600;margin-bottom:6px}
+  #detail .addform .ed{margin-bottom:6px}
+  #detail .addform .af-y{display:flex;gap:6px}
+  #detail .addform .af-y .ed{flex:1;min-width:0}
+  #detail .addform .af-i{min-height:60px;resize:vertical}
+  #detail .addform .af-lbl{font-size:11px;color:var(--muted);margin:2px 0 3px}
+  #detail .addform .af-m{font-size:12px;min-height:16px;margin:2px 0 6px;line-height:1.4}
+  #detail .addform .af-btns{display:flex;gap:6px;justify-content:flex-end}
+  #detail .addform .af-ok{background:#1b356b}
+  #detail .swatches{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 8px}
+  #detail .sw{width:20px;height:20px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0}
+  #detail .sw:hover{transform:scale(1.12)}
+  #detail .sw.on{border-color:#fff;box-shadow:0 0 0 1px #0e1e42}
+  #detail .af-tick{display:block;font-size:11px;color:var(--muted);margin:2px 0 6px;cursor:pointer}
   #detail .dn{font-size:16px;font-weight:700;margin:0 0 2px}
   #detail .dy{font-size:12.5px;color:var(--gold);margin:0 0 8px;font-weight:600}
   #detail .di{font-size:13px;line-height:1.5;color:#c4d2ec;margin:0}
@@ -141,14 +181,6 @@
   #notes .legend{list-style:none;margin:0;padding:0}
   .legend li{margin-bottom:10px;font-size:12px;color:#c4d2ec}
   .legend i{display:block;width:100%;margin-top:4px}
-  #addinfo{flex:none;padding:10px 18px 12px;border-top:1px solid #1c2f57}
-  #addinfo .ailbl{font-size:11px;color:var(--muted);margin-bottom:5px}
-  #addinfo textarea{width:100%;box-sizing:border-box;min-height:110px;resize:vertical;background:#0c1a3a;color:#dbe4f5;
-    border:1px solid #33507f;border-radius:6px;padding:7px;font:inherit;font-size:12.5px}
-  #addinfo button{margin-top:6px;background:#1b356b;color:#dbe4f5;border:1px solid #33507f;border-radius:6px;padding:6px 12px;cursor:pointer}
-  #addinfo button:hover{background:#254a8f}
-  #addinfo .aimsg{font-size:12px;margin-top:5px}
-  #addinfo .aidl{display:inline-block;margin-left:10px;font-size:11px;color:var(--muted);text-decoration:underline;cursor:pointer}
   .swatch{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:middle}
   #menuBtn,#sideBackdrop{display:none}
   #menuBtn.glow{border-color:#ff6b6b;color:#ff9a9a;animation:mpulse 1.4s ease-in-out infinite}
@@ -222,12 +254,21 @@
       <button id="zin" title="Približi">+</button>
       <button id="zout" title="Udalji">−</button>
       <button id="zreset" title="Namjesti pogled">⟲</button>
-      <button id="exportpos" title="Kopiraj trenutni raspored (za ugradnju u datoteku)" style="display:none">izvoz</button>
-      <button id="admintoggle" title="Uključi odabir okvirom i grupno premještanje" style="display:none">premjesti</button>
+      <div class="expwrap" id="exportwrap" style="display:none">
+        <button id="exportpos" title="Preuzmi podatke stabla (Excel, CSV ili JSON)">Izvoz</button>
+        <div id="exportmenu">
+          <button data-fmt="xlsx">Excel (.xlsx)</button>
+          <button data-fmt="csv">CSV (.zip, 3 tablice)</button>
+          <button data-fmt="json">JSON</button>
+        </div>
+      </div>
+      <label id="movetoggle" class="swtch" title="Omogući pomicanje planeta (povuci planet). Spremanje: gumb Spremi raspored" style="display:none"><input type="checkbox" id="moveinput"><span class="swtrack"><span class="swknob"></span></span><span class="swtext">Enable movement</span></label>
+      <label id="multitoggle" class="swtch" title="Omogući odabir više planeta okvirom (povuci mišem po praznoj pozadini)" style="display:none"><input type="checkbox" id="multiinput"><span class="swtrack"><span class="swknob"></span></span><span class="swtext">Enable multiselect</span></label>
+      <button id="savepos" title="Spremi u bazu novi položaj svih pomaknutih osoba" style="display:none">Spremi raspored</button>
     </div>
     <div id="disclaimer">Stablo je napravljeno onako kako su mi ljudi govorili. Ako mislite da se neke veze ne slažu, slobodno predložite promjene. Ako želite da se vaše ili nečije ime ukloni, slobodno me kontaktirajte.</div>
     <div id="hint3d"><span>🖱️ Lijevi klik: micanje &nbsp;•&nbsp; Desni klik: rotacija &nbsp;•&nbsp; Kotačić: zoom</span></div>
-    <div id="adminbadge">ADMIN — odaberi okvirom, povuci grupu</div>
+    <div id="adminbadge"></div>
     <div id="marquee"></div>
     <svg id="svg"><g id="root"><g id="edges"></g><g id="siblinks"></g><g id="nodes"></g></g></svg>
   </div>
@@ -246,7 +287,6 @@
       <div id="relOut"></div>
     </div>
     <div id="detail"><p class="empty">Traži ili klikni na čvor da vidiš podatke o osobi.</p></div>
-    <div id="addinfo"><div class="ailbl"></div><textarea placeholder="Upiši što znaš o ovoj osobi…"></textarea><button type="button">Spremi</button><a href="#" class="aidl">⬇ Preuzmi sve bilješke (.txt)</a><div class="aimsg"></div></div>
     <div id="notes"></div>
     <button id="contactBtn">✉ Kontaktiraj autora</button>
     <button id="logout">Odjava</button>
@@ -276,12 +316,15 @@ const loginBox=document.getElementById("login"), appBox=document.getElementById(
       userIn=document.getElementById("userIn"), pwIn=document.getElementById("pw"),
       loginMsg=document.getElementById("loginMsg"), loginForm=document.getElementById("loginForm");
 let started=false;
-async function fetchData(){ const {data,error}=await sb.from("tree").select("data").eq("id",1).single(); if(error) throw error; return data.data; }
+async function fetchData(){ const {data,error}=await sb.rpc("get_tree"); if(error) throw error; return data; }
 function applyAdmin(user){
   const meta = user ? (user.app_metadata||{}) : {};
   const isAdmin = !!(meta.admin===true || meta.role==="admin");
-  const exp=document.getElementById("exportpos"); if(exp) exp.style.display = isAdmin ? "" : "none";
-  const adm=document.getElementById("admintoggle"); if(adm) adm.style.display = isAdmin ? "" : "none";
+  window.__isAdmin = isAdmin;
+  if(isAdmin && window.__rerenderDetail) window.__rerenderDetail();
+  if(isAdmin && window.__restoreModes) window.__restoreModes();
+  const ew=document.getElementById("exportwrap"); if(ew) ew.style.display = isAdmin ? "" : "none";
+  ["movetoggle","multitoggle"].forEach(x=>{ const e=document.getElementById(x); if(e) e.style.display = isAdmin ? "" : "none"; });
   if(isAdmin){
     const dbg=document.getElementById("dbg");
     if(dbg){
@@ -426,19 +469,26 @@ function computeAge(){
   parents.forEach(([p,c])=>{ if(nodeById[p]&&nodeById[c]){chi[p].push(c); par[c].push(p);} });
   marriages.forEach(([a,b])=>{ if(nodeById[a]&&nodeById[b]){spo[a].push(b); spo[b].push(a);} });
   const raw={}, q=[];
-  ["baka_ivka","dida_jure"].forEach(id=>{ if(nodeById[id]){raw[id]=0; q.push(id);} });
+  let starts=nodes.filter(n=>persons[n.id].anchor);   // polazne osobe: oznaka age_anchor u bazi
+  if(!starts.length){   // nema ih (npr. obrisane): najbolje povezana osoba u najvećoj povezanoj skupini
+    const seen={}; let best=null;
+    nodes.forEach(n=>{ if(seen[n.id]) return; const members=[n.id]; seen[n.id]=true; const st=[n.id];
+      while(st.length){ const u=st.pop(); par[u].concat(chi[u],spo[u]).forEach(v=>{ if(!seen[v]){ seen[v]=true; members.push(v); st.push(v); } }); }
+      if(!best || members.length>best.length) best=members; });
+    if(best){ let top=best[0], tc=-1; best.forEach(id=>{ const c=par[id].length+chi[id].length+spo[id].length; if(c>tc){ tc=c; top=id; } }); starts=[nodeById[top]]; }
+  }
+  starts.forEach(n=>{ raw[n.id]=0; q.push(n.id); });
   while(q.length){ const u=q.shift(), g=raw[u];
     par[u].forEach(p=>{ if(raw[p]===undefined){raw[p]=g+1; q.push(p);} });
     chi[u].forEach(c=>{ if(raw[c]===undefined){raw[c]=g-1; q.push(c);} });
     spo[u].forEach(s=>{ if(raw[s]===undefined){raw[s]=g;   q.push(s);} });
   }
-  nodes.forEach(n=>{ if(raw[n.id]===undefined) raw[n.id]=0; });
-  const minRaw=Math.min(...nodes.map(n=>raw[n.id]));
-  nodes.forEach(n=>{ n.age = raw[n.id]-minRaw; });   // 0 = najmlađi, veći = stariji
+  const reached=nodes.filter(n=>raw[n.id]!==undefined);
+  const minRaw=reached.length?Math.min(...reached.map(n=>raw[n.id])):0;
+  nodes.forEach(n=>{ n.age = raw[n.id]===undefined ? null : raw[n.id]-minRaw; });   // 0 = najmlađi, veći = stariji; null = nije povezana, dobiva srednju veličinu
 }
 computeAge();
-const maxAge=Math.max(...nodes.map(n=>n.age));
-let ELDEST_ID=null,_maxA=-1; nodes.forEach(n=>{ if(n.age>_maxA){_maxA=n.age;ELDEST_ID=n.id;} });   // najstariji = najveći planet (zadržava glow)
+const maxAge=Math.max(0,...nodes.filter(n=>n.age!==null).map(n=>n.age));
 
 // --- Sunce = najstariji predak (gen 0) s najviše potomaka ---
 // (ručno možeš postaviti npr. SUN_ID="pile_d" ako želiš drugo Sunce)
@@ -449,49 +499,48 @@ function descCount(startId){
     for(const [pa,cd] of parents) if(pa===c && !seen.has(cd)){seen.add(cd);st.push(cd);} }
   return seen.size;
 }
-if(!SUN_ID){ let best=-1;
-  nodes.filter(n=>n.gen===0).forEach(n=>{ const d=descCount(n.id); if(d>best){best=d;SUN_ID=n.id;} }); }
+if(!SUN_ID){ let best=-1;   // središte rasporeda: među oznakama is_eldest ona s najviše potomaka (inače gen 0)
+  const cand=nodes.filter(n=>persons[n.id].eldest), pool=cand.length?cand:nodes.filter(n=>n.gen===0);
+  pool.forEach(n=>{ const d=descCount(n.id); if(d>best){best=d;SUN_ID=n.id;} }); }
 const sun=nodeById[SUN_ID]; sun.fixed=true; sun.gen=0;
 
 // --- veličine: stariji = veći, mlađi = sve manji ---
 // veličina ovisi o STAROSTI: najstariji = najveći planet (bez obzira na položaj)
 const R_MAX=32, R_MIN=8.5;
-nodes.forEach(n=>{ n.r = maxAge ? R_MIN+(R_MAX-R_MIN)*(n.age/maxAge) : R_MAX; });
+nodes.forEach(n=>{ n.r = n.age===null ? (R_MIN+R_MAX)/2 : (maxAge ? R_MIN+(R_MAX-R_MIN)*(n.age/maxAge) : R_MAX); });
 
 // --- boje: braća/sestre iste boje; roditelji, djeca (i djedovi) uvijek različite ---
 const parentsOfNode={};
 parents.forEach(([p,c])=>{ (parentsOfNode[c]=parentsOfNode[c]||[]).push(p); });
 // grupa = skup djece s istim roditeljima; osobe bez roditelja su vlastita grupa
 const groupKey=id=>{ const ps=parentsOfNode[id]; return ps&&ps.length? ps.slice().sort().join("+") : "root:"+id; };
-const groups={};
-nodes.forEach(n=>{ const k=groupKey(n.id); (groups[k]=groups[k]||{key:k,members:[]}).members.push(n); });
-// paleta jasno različitih boja (indeks 0 = zlatna, rezervirana za Sunce)
-// dvobojanje grafa roditelj→dijete (2-coloring): dijete je UVIJEK suprotna "traka" od svakog roditelja
-const pcAdj={}; nodes.forEach(n=>pcAdj[n.id]=[]);
-parents.forEach(([p,c])=>{ pcAdj[p].push(c); pcAdj[c].push(p); });
-const bcol={};
-(function twoColor(){
-  const run=start=>{ bcol[start]=0; const q=[start];
-    while(q.length){ const u=q.shift();
-      for(const v of pcAdj[u]) if(bcol[v]===undefined){ bcol[v]=bcol[u]^1; q.push(v); } } };
-  run(SUN_ID);
-  nodes.forEach(n=>{ if(bcol[n.id]===undefined) run(n.id); });
-})();
-// dvije SVIJETLE trake: topla (žute/breskva) i hladna (plave/ljubičaste)
-// -> roditelj i dijete uvijek prelaze topla<->hladna, ali sve ostaje svijetlo (bez tamnih, crvene, zelene)
-const BAND_WARM=["#f4dc86","#f4c99a","#ecd2a2","#f6e2b4","#f0cf8f","#f3d6b2"];
-const BAND_COOL=["#8fc4ee","#c3a6ec","#a9cdee","#bcaae6","#9ad6ea","#b0bcee"];
-const groupColor={};
-const bc=[0,0];
-Object.values(groups)
-  .sort((a,b)=>Math.min(...a.members.map(m=>m.gen))-Math.min(...b.members.map(m=>m.gen)))
-  .forEach(g=>{
-    if(g.key===groupKey(SUN_ID)){ groupColor[g.key]="#ffcf5e"; return; }   // Sunce zlatno
-    const parity=bcol[g.members[0].id];
-    const band=parity? BAND_COOL : BAND_WARM;
-    groupColor[g.key]=band[ bc[parity]++ % band.length ];
-  });
-const colourFor=id=> groupColor[groupKey(id)] || "#cfd6e0";
+// --- boje: svaka osoba ima spremljenu boju (persons.color) koju biraš ručno; rezerva je neutralna siva ---
+const PALETTE=["#f4dc86","#f4c99a","#ecd2a2","#f6e2b4","#f0cf8f","#f3d6b2","#8fc4ee","#c3a6ec","#a9cdee","#bcaae6","#9ad6ea","#b0bcee"];
+const colourFor=id=> (persons[id]&&persons[id].color) || "#cfd6e0";
+// red kružića s bojama; onPick(boja) se zove na klik
+function makeSwatches(selected,onPick){
+  const wrap=document.createElement("div"); wrap.className="swatches";
+  const mark=c=>wrap.querySelectorAll(".sw").forEach(b=>b.classList.toggle("on",b.dataset.c===c));
+  PALETTE.forEach(c=>{ const b=document.createElement("button"); b.type="button"; b.className="sw"; b.dataset.c=c; b.style.background=c; b.title=c;
+    b.addEventListener("click",()=>{ mark(c); onPick(c); }); wrap.appendChild(b); });
+  mark((selected||"").toLowerCase());
+  return wrap;
+}
+// zadana boja nove osobe: braća i sestre kao odabrana osoba, ostali prva boja koja se razlikuje od nje i njezine najbliže rodbine
+function defaultColor(id,rel){
+  const cur=(persons[id].color||"").toLowerCase();
+  if(rel==="sibling" && cur) return cur;
+  const near=new Set([cur]), add=x=>{ if(persons[x]) near.add((persons[x].color||"").toLowerCase()); };
+  marriages.forEach(([a,b])=>{ if(a===id) add(b); if(b===id) add(a); });
+  parents.forEach(([a,c])=>{ if(a===id) add(c); if(c===id) add(a); });
+  return PALETTE.find(c=>!near.has(c)) || PALETTE[0];
+}
+// osobe s potpuno istim roditeljima (braća i sestre); bez poznatih roditelja nema nikoga
+function sameParentSiblings(id){
+  const key=x=>parents.filter(([a,c])=>c===x).map(([a])=>a).sort().join("+");
+  const k=key(id); if(!k) return [];
+  return Object.keys(persons).filter(o=>o!==id && key(o)===k);
+}
 
 const RING=162;   // razmak između prstenova generacija
 // --- parovi: partneri se grupiraju u jedan "klaster" (planet do planeta) ---
@@ -611,7 +660,7 @@ function refreshSib(){
                         L.el.setAttribute("x2",L.b.x);L.el.setAttribute("y2",L.b.y); });
 }
 function clearSelection(){
-  selected=null; setInfoTarget(null);
+  selected=null;
   rootG.classList.remove("dim");
   clearMarks();
   if(window.__clearMark) window.__clearMark();
@@ -626,7 +675,7 @@ function fillDetail(id){
   d.querySelector(".dn").textContent=p.n;
   d.querySelector(".dy").textContent=years||"godine nepoznate";
   d.querySelector(".di").textContent=p.info||"—";
-  setInfoTarget(id);
+  decorateDetail(d,id);
 }
 function showPerson(id){
   const p=persons[id]; if(!p) return;
@@ -688,7 +737,7 @@ function showPerson(id){
   d.querySelector(".dn").textContent=p.n;
   d.querySelector(".dy").textContent=years||"godine nepoznate";
   d.querySelector(".di").textContent=p.info||"—";
-  setInfoTarget(id);
+  decorateDetail(d,id);
 }
 
 function build(){
@@ -696,7 +745,7 @@ function build(){
   edges.forEach(e=>{ e.el=el("line",{class:"edge"+(e.type==="m"?" marriage":"")}); edgesG.appendChild(e.el); });
   nodes.forEach(n=>{
     const p=persons[n.id];
-    const g=el("g",{class:"node"+(n===sun?" sun":"")+(n.id===ELDEST_ID?" eldest":"")});
+    const g=el("g",{class:"node"+(persons[n.id].eldest?" eldest":"")});
     g.appendChild(el("circle",{class:"body",r:n.r,fill:colourFor(n.id)}));
     g.appendChild(el("circle",{class:"sheen",r:n.r*0.42,cx:-n.r*0.32,cy:-n.r*0.32,
                                fill:"#ffffff","fill-opacity":0.22}));
@@ -728,68 +777,145 @@ document.getElementById("notes").innerHTML=`
     <li><span>braća / sestre</span><i style="border-top:3px dashed #f0996b"></i></li>
   </ul>`;
 
-/* ---- brze bilješke o osobi: prvo odmah u localStorage (red čekanja), pa u Supabase tablicu person_notes.
-        Ako nema veze, ostaje u redu i šalje se kasnije — ne gubi se. ---- */
-var infoTarget=null;
-const NOTE_QK="stablo-notes-queue";
-const noteQ=()=>{ try{ return JSON.parse(localStorage.getItem(NOTE_QK)||"[]"); }catch(e){ return []; } };
-const NOTE_AK="stablo-notes-all";   // trajni arhiv na uređaju — ne briše se nakon slanja
-const noteArch=()=>{ try{ return JSON.parse(localStorage.getItem(NOTE_AK)||"[]"); }catch(e){ return []; } };
-function downloadNotes(){
-  const a=noteArch(); if(!a.length){ showPending("Nema spremljenih bilješki."); return; }
-  const NL=String.fromCharCode(10);
-  const txt=a.map(n=>"["+new Date(n.t).toLocaleString("hr-HR")+"] "+n.name+NL+n.text).join(NL+NL)+NL;
-  const url=URL.createObjectURL(new Blob([txt],{type:"text/plain;charset=utf-8"}));
-  const l=document.createElement("a"); l.href=url; l.download="biljeske-"+new Date().toISOString().slice(0,10)+".txt";
-  document.body.appendChild(l); l.click(); l.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000);
-}
-const noteQSet=a=>{ try{ localStorage.setItem(NOTE_QK,JSON.stringify(a)); }catch(e){} };
-function setInfoTarget(id){
-  infoTarget=id?{id,name:persons[id].n}:null;
-  const box=document.getElementById("addinfo"); if(!box) return;
-  box.style.display=infoTarget?"":"none";
-  if(infoTarget) box.querySelector(".ailbl").textContent="Dodaj informaciju o: "+infoTarget.name;
-  showPending();
-}
-function showPending(msg,color){
-  const ms=document.querySelector("#addinfo .aimsg"); if(!ms) return;
-  const n=noteQ().length;
-  ms.style.color=color||"#9ad6a0";
-  ms.textContent=(msg||"")+(n?(msg?" ":"")+"Čeka slanje: "+n:"");
-}
-let flushing=false;
-async function flushNotes(){
-  if(flushing||!noteQ().length) return; flushing=true;
-  try{
-    const {data}=await sb.auth.getSession(); if(!data.session) return;
-    const rest=[];
-    for(const n of noteQ()){
-      const {error}=await sb.from("person_notes").insert({person_id:n.pid,person_name:n.name,note:n.text,created_at:n.t});
-      if(error){ console.error(error); rest.push(n); }
-    }
-    noteQSet(rest);
-  }catch(e){ console.error(e); }
-  finally{ flushing=false; showPending(); }
-}
-(function(){
-  const box=document.getElementById("addinfo");
-  const ta=box.querySelector("textarea"), bt=box.querySelector("button");
-  setInfoTarget(null);
-  bt.addEventListener("click", async ()=>{
-    const t=(ta.value||"").trim(); if(!infoTarget||!t) return;
-    const item={pid:infoTarget.id,name:infoTarget.name,text:t,t:new Date().toISOString()};
-    const q=noteQ(); q.push(item); noteQSet(q);
-    try{ const ar=noteArch(); ar.push(item); localStorage.setItem(NOTE_AK,JSON.stringify(ar)); }catch(e){}
-    ta.value=""; showPending("Spremljeno ✓");
-    await flushNotes();
-    if(noteQ().length) showPending("Spremljeno na uređaju, šalje se kad bude veze.","#e8b45e");
-    else showPending("Spremljeno ✓");
+/* ---- uređivanje osobe (samo admin): olovka pored opisa, sve se sprema automatski u tablicu persons ---- */
+function decorateDetail(d,id){
+  if(!window.__isAdmin) return;
+  const di=d.querySelector(".di"); if(!di) return;
+  const b=document.createElement("button"); b.type="button"; b.className="pencil"; b.title="Uredi"; b.textContent="✎";
+  b.addEventListener("click",()=>startEdit(d,id));
+  di.appendChild(b);
+  // dodavanje osoba: supružnik, dijete, roditelj, brat/sestra (sprema se u bazu, pa se stranica ponovno učita)
+  const row=document.createElement("div"); row.className="addrow";
+  const lbl=document.createElement("span"); lbl.className="al"; lbl.textContent="Dodaj:"; row.appendChild(lbl);
+  [["spouse","+ Supružnik"],["child","+ Dijete"],["parent","+ Roditelj"],["sibling","+ Brat/sestra"]].forEach(([rel,txt])=>{
+    const ab=document.createElement("button"); ab.type="button"; ab.className="addbtn"; ab.textContent=txt;
+    if(rel==="parent" && parents.filter(([a,c])=>c===id).length>=2){ ab.disabled=true; ab.title="Osoba već ima dva roditelja"; }
+    ab.addEventListener("click",()=>startAdd(d,id,rel,row));
+    row.appendChild(ab);
   });
-  box.querySelector(".aidl").addEventListener("click",e=>{ e.preventDefault(); downloadNotes(); });
-  window.addEventListener("online",flushNotes);
-  setInterval(flushNotes,30000);
-  setTimeout(flushNotes,3000);
-})();
+  const del=document.createElement("button"); del.type="button"; del.className="addbtn delbtn"; del.textContent="Obriši osobu";
+  del.title="Meko brisanje: osoba se skriva i može se vratiti iz baze";
+  del.addEventListener("click",async()=>{
+    if(!confirm("Obrisati osobu „"+persons[id].n+"“? Osoba se samo skriva i može se vratiti iz baze.")) return;
+    del.disabled=true;
+    const {error}=await sb.rpc("delete_person",{p_id:id});
+    if(error){ console.error(error); alert(error.message||"Brisanje nije uspjelo."); del.disabled=false; return; }
+    try{ sessionStorage.setItem("keepView",JSON.stringify({tx:view.tx,ty:view.ty,s:view.s})); }catch(e){}
+    location.reload();
+  });
+  row.appendChild(del);
+  di.insertAdjacentElement("afterend",row);
+}
+window.__rerenderDetail=()=>{ if(selected && persons[selected]) showPerson(selected); };   // npr. kad se nakon prijave sazna da je korisnik admin
+function startAdd(d,id,rel,row){
+  d.querySelectorAll(".addform").forEach(f=>f.remove());
+  const p=persons[id];
+  const titles={spouse:"Novi supružnik za: ",child:"Novo dijete od: ",parent:"Novi roditelj osobe: ",sibling:"Novi brat/sestra osobe: "};
+  const box=document.createElement("div"); box.className="addform";
+  box.innerHTML='<div class="aft"></div><input class="ed af-n" placeholder="Ime i prezime" autocomplete="off"><div class="af-y"><input class="ed af-b" placeholder="rođen/a" autocomplete="off"><input class="ed af-d" placeholder="umro/la" autocomplete="off"></div><textarea class="ed af-i" placeholder="Opis"></textarea><div class="af-sel"></div><div class="af-m"></div><div class="af-btns"><button type="button" class="addbtn af-x">Odustani</button><button type="button" class="addbtn af-ok">Dodaj</button></div>';
+  box.querySelector(".aft").textContent=titles[rel]+p.n;
+  const msg=box.querySelector(".af-m");
+  let chosen=defaultColor(id,rel);
+  const colWrap=document.createElement("div");
+  colWrap.innerHTML='<div class="af-lbl">Boja</div>';
+  colWrap.appendChild(makeSwatches(chosen,c=>{ chosen=c; }));
+  box.querySelector(".af-m").insertAdjacentElement("beforebegin",colWrap);
+  let sel=null;
+  if(rel==="child"){
+    const sp=marriages.filter(([a,b])=>a===id||b===id).map(([a,b])=>a===id?b:a).filter(x=>persons[x]);
+    const wrap=box.querySelector(".af-sel");
+    const lab=document.createElement("div"); lab.className="af-lbl"; lab.textContent="Drugi roditelj"; wrap.appendChild(lab);
+    sel=document.createElement("select"); sel.className="ed";
+    const o0=document.createElement("option"); o0.value=""; o0.textContent="nepoznat"; sel.appendChild(o0);
+    sp.forEach(sid=>{ const q=persons[sid]; const o=document.createElement("option"); o.value=sid;
+      o.textContent=q.n+(q.born?" ("+q.born+")":"")+(q.info?" · "+q.info.slice(0,40):""); sel.appendChild(o); });
+    if(sp.length===1) sel.value=sp[0];
+    wrap.appendChild(sel);
+  }
+  if(rel==="sibling" && !parents.some(([a,c])=>c===id)){
+    msg.style.color="var(--muted)"; msg.textContent="Osoba nema poznatih roditelja, pa će se dodati čvor „roditelji (nepoznati)“.";
+  }
+  row.style.display="none"; row.insertAdjacentElement("afterend",box);
+  const nameIn=box.querySelector(".af-n"), ok=box.querySelector(".af-ok");
+  box.querySelector(".af-x").addEventListener("click",()=>{ box.remove(); row.style.display=""; });
+  const submit=async()=>{
+    const name=nameIn.value.trim();
+    if(!name){ msg.style.color="#f0996b"; msg.textContent="Upiši ime."; nameIn.focus(); return; }
+    ok.disabled=true; msg.style.color="var(--muted)"; msg.textContent="Spremam…";
+    const {data,error}=await sb.rpc("add_relative",{
+      p_anchor:id, p_relation:rel, p_name:name,
+      p_born:box.querySelector(".af-b").value.trim()||null,
+      p_died:box.querySelector(".af-d").value.trim()||null,
+      p_info:box.querySelector(".af-i").value.trim()||null,
+      p_other_parent:(sel&&sel.value)||null, p_color:chosen });
+    if(error){ console.error(error); msg.style.color="#f0996b"; msg.textContent=error.message||"Greška pri spremanju."; ok.disabled=false; return; }
+    try{ sessionStorage.setItem("afterAdd",JSON.stringify({id:data,s:view.s})); }catch(e){}
+    location.reload();   // sve (generacije, veličine, boje, pretraga, 3D) se računa pri učitavanju
+  };
+  ok.addEventListener("click",submit);
+  nameIn.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); submit(); } });
+  nameIn.focus();
+}
+function startEdit(d,id){
+  const p=persons[id], head=d.querySelector(".dn"), yr=d.querySelector(".dy"), di=d.querySelector(".di");
+  const inp=(cls,val,ph)=>{ const e=document.createElement("input"); e.className="ed "+cls; e.value=val||""; e.placeholder=ph; return e; };
+  const name=inp("ed-n",p.n,"Ime"), born=inp("ed-b",p.born,"rođen/a"), died=inp("ed-d",p.died,"umro/la");
+  const info=document.createElement("textarea"); info.className="ed ed-i"; info.value=p.info||""; info.placeholder="Opis";
+  const stat=document.createElement("span"); stat.className="estat";
+  head.textContent=""; head.appendChild(name);
+  yr.textContent=""; yr.classList.add("edyr"); yr.appendChild(born); yr.appendChild(died);
+  di.textContent=""; di.appendChild(info);
+  let colPick=(p.color||"").toLowerCase(), sibTick=false;
+  const sibIds=sameParentSiblings(id);
+  const colWrap=document.createElement("div");
+  colWrap.innerHTML='<div class="af-lbl">Boja</div>';
+  colWrap.appendChild(makeSwatches(colPick,c=>{ colPick=c; queue(); }));
+  if(sibIds.length){
+    const lb=document.createElement("label"); lb.className="af-tick"; lb.title="Braća i sestre (isti roditelji): "+sibIds.map(x=>persons[x].n).join(", ");
+    const cb=document.createElement("input"); cb.type="checkbox"; cb.addEventListener("change",()=>{ sibTick=cb.checked; queue(); });
+    lb.appendChild(cb); lb.appendChild(document.createTextNode(" primijeni boju i na braću i sestre ("+sibIds.length+")"));
+    colWrap.appendChild(lb);
+  }
+  let glowOn=!!p.eldest;
+  const gl=document.createElement("label"); gl.className="af-tick";
+  const gcb=document.createElement("input"); gcb.type="checkbox"; gcb.checked=glowOn; gcb.addEventListener("change",()=>{ glowOn=gcb.checked; queue(); });
+  gl.appendChild(gcb); gl.appendChild(document.createTextNode(" sjaj (svijetli na grafu)"));
+  colWrap.appendChild(gl);
+  di.appendChild(colWrap);
+  const done=document.createElement("button"); done.type="button"; done.className="pencil"; done.title="Gotovo"; done.textContent="✓";
+  di.appendChild(done); di.appendChild(stat);
+  let timer=null, last={n:p.n,born:p.born||"",died:p.died||"",info:p.info||"",color:colPick,sibs:false,glow:!!p.eldest};
+  const cur=()=>({n:name.value.trim(),born:born.value.trim(),died:died.value.trim(),info:info.value.trim(),color:colPick,sibs:sibTick,glow:glowOn});
+  async function save(){
+    clearTimeout(timer); timer=null;
+    const v=cur(); if(!v.n){ stat.style.color="#f0996b"; stat.textContent="Ime ne smije biti prazno."; return false; }
+    if(v.n===last.n&&v.born===last.born&&v.died===last.died&&v.info===last.info&&v.color===last.color&&v.sibs===last.sibs&&v.glow===last.glow) return true;
+    stat.style.color="var(--muted)"; stat.textContent="Spremam…";
+    const {error}=await sb.from("persons").update({name:v.n,born:v.born||null,died:v.died||null,info:v.info||null,color:v.color||null,is_eldest:!!v.glow}).eq("id",id);
+    if(error){ console.error(error); stat.style.color="#f0996b"; stat.textContent="Greška pri spremanju."; return false; }
+    if(v.sibs && v.color && sibIds.length){
+      const {error:e2}=await sb.from("persons").update({color:v.color}).in("id",sibIds);
+      if(e2){ console.error(e2); stat.style.color="#f0996b"; stat.textContent="Greška pri spremanju boje braće i sestara."; return false; }
+    }
+    if(v.color){ p.color=v.color; const ids=v.sibs?[id].concat(sibIds):[id];
+      ids.forEach(x=>{ if(persons[x]) persons[x].color=v.color; const c=nodeById[x]&&nodeById[x].g&&nodeById[x].g.querySelector("circle.body"); if(c) c.setAttribute("fill",v.color); }); }
+    if(v.glow) p.eldest=true; else delete p.eldest;
+    { const g0=nodeById[id]&&nodeById[id].g; if(g0) g0.classList.toggle("eldest",!!v.glow); }
+    p.n=v.n; if(v.born) p.born=v.born; else delete p.born; if(v.died) p.died=v.died; else delete p.died; if(v.info) p.info=v.info; else delete p.info;
+    last=v; stat.style.color="#9ad6a0"; stat.textContent="Spremljeno ✓";
+    const nd=nodeById[id]; if(nd&&nd.g){
+      const lb=nd.g.querySelector(".lbl"); if(lb) lb.textContent=p.n;
+      const yl=p.born?(p.died?p.born+"–"+p.died:"* "+p.born):(p.died?"† "+p.died:"");
+      let ye=nd.g.querySelector(".yr");
+      if(yl){ if(!ye){ ye=el("text",{class:"yr",y:nd.r+29}); nd.g.appendChild(ye); } ye.textContent=yl; } else if(ye) ye.remove();
+    }
+    return true;
+  }
+  const queue=()=>{ stat.style.color="var(--muted)"; stat.textContent="…"; clearTimeout(timer); timer=setTimeout(save,800); };
+  [name,born,died,info].forEach(e=>e.addEventListener("input",queue));
+  done.addEventListener("click",async()=>{ if(await save()){ if(selected===id) showPerson(id); else fillDetail(id); } });
+  name.focus();
+}
 
 /* ---- pan / zoom / drag ---- */
 let view={tx:0,ty:0,s:1};
@@ -806,37 +932,66 @@ function fit(){
 
 let panning=false,panMoved=false,psx,psy,wheelT;
 
-/* ---- ADMIN mod (samo prijavljeni admin — gumb „premjesti"): okvirom se bira više
+/* ---- ADMIN mod (samo prijavljeni admin — prekidač „Enable multiselect"): okvirom se bira više
         čvorova, povlačenje odabranog miče cijelu grupu (samo u sesiji, ne dira DEFAULT_POS) ---- */
-let adminMode=false;
 const groupSel=new Set();
 let marquee=null, groupDrag=null;
 const stageEl=document.getElementById("stage");
 const marqEl=document.getElementById("marquee");
 const badgeEl=document.getElementById("adminbadge");
 function clearGroup(){ groupSel.forEach(n=>n.g.classList.remove("gsel")); groupSel.clear(); }
-function setAdmin(on){ adminMode=on; stageEl.classList.toggle("admin",on);
-  if(badgeEl) badgeEl.style.display=on?"block":"none";
-  const b=document.getElementById("admintoggle"); if(b) b.classList.toggle("on",on);
-  if(!on){ clearGroup(); if(marqEl) marqEl.style.display="none"; marquee=null; } }
-const admBtn=document.getElementById("admintoggle");
-if(admBtn) admBtn.onclick=()=>setAdmin(!adminMode);
+// osobe čiji se položaj razlikuje od spremljenog u bazi
+function movedNodes(){ return nodes.filter(n=>{ const o=DEFAULT_POS[n.id]; return !o || Math.round(o.x)!==Math.round(n.x) || Math.round(o.y)!==Math.round(n.y); }); }
+// gumb „Spremi raspored": vidljiv dok se uređuje ili dok postoje nespremljeni pomaci, s brojem pomaknutih
+let moveMode=false, multiMode=false;   // Enable movement: planeti se mogu povlačiti; Enable multiselect: okvirom se bira više planeta
+function updateSaveBtn(){
+  const sv=document.getElementById("savepos"); if(!sv || sv.disabled) return;
+  const n=movedNodes().length;
+  sv.style.display=(moveMode||n)?"":"none";
+  sv.textContent=n?("Spremi raspored ("+n+")"):"Spremi raspored";
+}
+function updateBadge(){
+  if(!badgeEl) return;
+  const t=[]; if(moveMode) t.push("MOVEMENT ON"); if(multiMode) t.push("MULTISELECT ON");
+  badgeEl.textContent=t.join(" · "); badgeEl.style.display=t.length?"block":"none";
+}
+function setMove(on){
+  moveMode=on; const inp=document.getElementById("moveinput"); if(inp) inp.checked=on;
+  try{ localStorage.setItem("stablo-move",on?"1":"0"); }catch(e){}
+  updateBadge(); updateSaveBtn();   // pomaknuti planeti ostaju na ekranu, nespremljeni, dok ne klikneš „Spremi raspored"
+}
+function setMulti(on){
+  multiMode=on; stageEl.classList.toggle("admin",on);
+  try{ localStorage.setItem("stablo-multi",on?"1":"0"); }catch(e){}
+  const inp=document.getElementById("multiinput"); if(inp) inp.checked=on;
+  if(!on){ clearGroup(); if(marqEl) marqEl.style.display="none"; marquee=null; }
+  updateBadge();
+}
+// nakon ponovnog učitavanja (dodavanje/brisanje osobe) prekidači ostaju kakvi su bili; primjenjuje se SAMO kad je prijavljen admin
+window.__restoreModes=()=>{ try{
+  if(localStorage.getItem("stablo-move")==="1") setMove(true);
+  if(localStorage.getItem("stablo-multi")==="1") setMulti(true);
+}catch(e){} };
+const moveInp=document.getElementById("moveinput"); if(moveInp) moveInp.onchange=()=>setMove(moveInp.checked);
+const multiInp=document.getElementById("multiinput"); if(multiInp) multiInp.onchange=()=>setMulti(multiInp.checked);
 
 svg.addEventListener("mousedown",e=>{ if(e.target.closest(".node"))return;
-  if(adminMode){ const r=stageEl.getBoundingClientRect();
+  if(multiMode){ const r=stageEl.getBoundingClientRect();
     marquee={x0:e.clientX-r.left, y0:e.clientY-r.top};
     marqEl.style.left=marquee.x0+"px"; marqEl.style.top=marquee.y0+"px";
     marqEl.style.width="0px"; marqEl.style.height="0px"; marqEl.style.display="block";
     if(!e.shiftKey) clearGroup(); return; }
   panning=true;panMoved=false;psx=e.clientX-view.tx;psy=e.clientY-view.ty;svg.classList.add("grabbing"); rootG.classList.add("moving"); });
-svg.addEventListener("click",e=>{ if(!e.target.closest(".node") && !panMoved && !adminMode && selected) clearSelection(); });
+svg.addEventListener("click",e=>{ if(!e.target.closest(".node") && !panMoved && !multiMode && selected) clearSelection(); });
 let dragNode=null,draggedMoved=false,goffx,goffy;
-function startNodeDrag(ev,n){ ev.stopPropagation(); draggedMoved=false; rootG.classList.add("moving");
-  if(adminMode && groupSel.has(n)){
+function startNodeDrag(ev,n){ ev.stopPropagation(); draggedMoved=false;
+  if(!moveMode) return;   // raspored je zaključan dok admin ne uključi „Enable movement"
+  rootG.classList.add("moving");
+  if(groupSel.has(n)){
     const wx=(ev.clientX-view.tx)/view.s, wy=(ev.clientY-view.ty)/view.s;
     const base=new Map(); groupSel.forEach(g=>base.set(g,{x:g.x,y:g.y}));
     groupDrag={wx,wy,base}; return; }
-  if(adminMode) clearGroup();
+  clearGroup();
   dragNode=n;
   const gx=(ev.clientX-view.tx)/view.s, gy=(ev.clientY-view.ty)/view.s;
   goffx=gx-n.x; goffy=gy-n.y; }
@@ -860,7 +1015,8 @@ window.addEventListener("mouseup",e=>{
     nodes.forEach(n=>{ const sx=n.x*view.s+view.tx, sy=n.y*view.s+view.ty;
       if(sx>=x1&&sx<=x2&&sy>=y1&&sy<=y2){ groupSel.add(n); n.g.classList.add("gsel"); } });
     marqEl.style.display="none"; marquee=null; }
-  panning=false;dragNode=null;groupDrag=null;svg.classList.remove("grabbing"); rootG.classList.remove("moving"); });
+  panning=false;dragNode=null;groupDrag=null;svg.classList.remove("grabbing"); rootG.classList.remove("moving");
+  updateSaveBtn(); });
 svg.addEventListener("wheel",e=>{
   e.preventDefault();
   rootG.classList.add("moving"); clearTimeout(wheelT); wheelT=setTimeout(()=>rootG.classList.remove("moving"),180);
@@ -997,14 +1153,106 @@ function applySaved(){
 
 build(); applySaved(); refresh(); fit();
 requestAnimationFrame(()=>rootG.classList.add("ready"));   // fade in stabla
+// nakon brisanja (ponovno učitavanje): vrati zoom i položaj pogleda
+try{ const kv=JSON.parse(sessionStorage.getItem("keepView")||"null"); sessionStorage.removeItem("keepView");
+  if(kv){ view.tx=kv.tx; view.ty=kv.ty; view.s=kv.s; apply(); } }catch(e){}
+if(window.__isAdmin && window.__restoreModes) window.__restoreModes();   // admin je možda već poznat
+// nakon dodavanja osobe (ponovno učitavanje): vrati zoom, centriraj i odaberi novu osobu
+try{
+  const aa=JSON.parse(sessionStorage.getItem("afterAdd")||"null"); sessionStorage.removeItem("afterAdd");
+  if(aa && nodeById[aa.id]){
+    const nd=nodeById[aa.id], rr=svg.getBoundingClientRect();
+    view.s=(aa.s && aa.s>=0.55)?aa.s:0.9; view.tx=rr.width/2-nd.x*view.s; view.ty=rr.height/2-nd.y*view.s; apply();
+    showPerson(aa.id);
+  }
+}catch(e){ console.error(e); }
 
-// izvoz trenutnog rasporeda (kopiraj JSON pa ga ugradimo kao zadani)
-document.getElementById("exportpos").onclick=()=>{
-  const o={}; nodes.forEach(n=>o[n.id]={x:Math.round(n.x),y:Math.round(n.y)});
-  const json=JSON.stringify(o);
-  try{ if(navigator.clipboard) navigator.clipboard.writeText(json); }catch(e){}
-  window.prompt("Raspored je kopiran. Zalijepi ga u chat (Ctrl+C ako treba):", json);
+// spremi raspored: u tablicu persons upisuje x,y svih osoba čiji se položaj razlikuje od onog u bazi (samo admin, RLS to ionako traži)
+document.getElementById("savepos").onclick=async function(){
+  const btn=this, reset=ms=>setTimeout(()=>updateSaveBtn(),ms);
+  const moved=movedNodes();
+  if(!moved.length){ btn.textContent="nema promjena"; reset(1500); return; }
+  if(!confirm("Spremiti novi položaj za "+moved.length+" osoba u bazu?")) return;
+  btn.disabled=true; btn.textContent="spremam…";
+  let fail=0;
+  for(let i=0;i<moved.length;i+=10){
+    await Promise.all(moved.slice(i,i+10).map(async n=>{
+      const x=Math.round(n.x), y=Math.round(n.y);
+      const {error}=await sb.from("persons").update({x,y}).eq("id",n.id);
+      if(error){ console.error(error); fail++; } else DEFAULT_POS[n.id]={x,y};
+    }));
+  }
+  btn.disabled=false; btn.textContent=fail?("greška: "+fail):("spremljeno: "+moved.length+" ✓"); reset(2500);
 };
+
+/* ---- Izvoz (samo admin): Excel, CSV (zip s 3 tablice) ili JSON; uključuje položaje ---- */
+(function(){
+  const wrap=document.getElementById("exportwrap"), menu=document.getElementById("exportmenu"), btn=document.getElementById("exportpos");
+  const nameOf=id=>persons[id]?persons[id].n:"";
+  const posOf=id=>DEFAULT_POS[id]||{};
+  const tables=()=>({
+    osobe:[["id","ime","rođen","umro","opis","x","y","najstariji"]].concat(Object.keys(persons).map(id=>{ const p=persons[id], q=posOf(id);
+      return [id,p.n||"",p.born||"",p.died||"",p.info||"",q.x==null?"":q.x,q.y==null?"":q.y,p.eldest?"da":""]; })),
+    brakovi:[["osoba_a_id","osoba_a_ime","osoba_b_id","osoba_b_ime"]].concat(marriages.map(([a,b])=>[a,nameOf(a),b,nameOf(b)])),
+    roditelj_dijete:[["roditelj_id","roditelj_ime","dijete_id","dijete_ime"]].concat(parents.map(([a,b])=>[a,nameOf(a),b,nameOf(b)]))
+  });
+  const stamp=()=>new Date().toISOString().slice(0,10);
+  const download=(blob,fname)=>{ const url=URL.createObjectURL(blob), a=document.createElement("a"); a.href=url; a.download=fname;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000); };
+  const csvCell=v=>{ v=String(v); return /[",\r\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+  const toCsv=rows=>"﻿"+rows.map(r=>r.map(csvCell).join(",")).join("\r\n")+"\r\n";
+  // minimalni zip (bez kompresije), da CSV-ovi idu u jednoj datoteci i bez vanjskih biblioteka
+  function crc32(b){ let c=0xFFFFFFFF; for(let i=0;i<b.length;i++){ c^=b[i]; for(let k=0;k<8;k++) c=(c>>>1)^(0xEDB88320&-(c&1)); } return (c^0xFFFFFFFF)>>>0; }
+  function makeZip(files){
+    const enc=new TextEncoder(), now=new Date();
+    const dt=((now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1))&0xFFFF, dd=(((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate())&0xFFFF;
+    const parts=[], central=[]; let offset=0;
+    files.forEach(f=>{
+      const name=enc.encode(f.name), data=enc.encode(f.text), crc=crc32(data);
+      const lh=new DataView(new ArrayBuffer(30));
+      lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(6,0x0800,true); lh.setUint16(8,0,true);
+      lh.setUint16(10,dt,true); lh.setUint16(12,dd,true); lh.setUint32(14,crc,true); lh.setUint32(18,data.length,true);
+      lh.setUint32(22,data.length,true); lh.setUint16(26,name.length,true); lh.setUint16(28,0,true);
+      parts.push(new Uint8Array(lh.buffer),name,data);
+      const ch=new DataView(new ArrayBuffer(46));
+      ch.setUint32(0,0x02014b50,true); ch.setUint16(4,20,true); ch.setUint16(6,20,true); ch.setUint16(8,0x0800,true); ch.setUint16(10,0,true);
+      ch.setUint16(12,dt,true); ch.setUint16(14,dd,true); ch.setUint32(16,crc,true); ch.setUint32(20,data.length,true);
+      ch.setUint32(24,data.length,true); ch.setUint16(28,name.length,true); ch.setUint32(42,offset,true);
+      central.push(new Uint8Array(ch.buffer),name);
+      offset+=30+name.length+data.length;
+    });
+    const csize=central.reduce((a,b)=>a+b.length,0);
+    const end=new DataView(new ArrayBuffer(22));
+    end.setUint32(0,0x06054b50,true); end.setUint16(8,files.length,true); end.setUint16(10,files.length,true);
+    end.setUint32(12,csize,true); end.setUint32(16,offset,true);
+    return new Blob(parts.concat(central,[new Uint8Array(end.buffer)]),{type:"application/zip"});
+  }
+  const loadScript=url=>new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=url; s.onload=res; s.onerror=()=>rej(new Error("ne mogu učitati "+url)); document.head.appendChild(s); });
+  async function doExport(fmt){
+    const t=tables(), base="obiteljsko-stablo-"+stamp();
+    if(fmt==="json"){
+      const out={
+        osobe:Object.keys(persons).map(id=>{ const p=persons[id], q=posOf(id); return {id,ime:p.n||"",rodjen:p.born||null,umro:p.died||null,opis:p.info||null,x:q.x==null?null:q.x,y:q.y==null?null:q.y,najstariji:!!p.eldest}; }),
+        brakovi:marriages.map(([a,b])=>({osoba_a:a,osoba_a_ime:nameOf(a),osoba_b:b,osoba_b_ime:nameOf(b)})),
+        roditelj_dijete:parents.map(([a,b])=>({roditelj:a,roditelj_ime:nameOf(a),dijete:b,dijete_ime:nameOf(b)}))
+      };
+      download(new Blob([JSON.stringify(out,null,2)],{type:"application/json"}),base+".json");
+    } else if(fmt==="csv"){
+      download(makeZip([{name:"osobe.csv",text:toCsv(t.osobe)},{name:"brakovi.csv",text:toCsv(t.brakovi)},{name:"roditelj_dijete.csv",text:toCsv(t.roditelj_dijete)}]),base+"-csv.zip");
+    } else if(fmt==="xlsx"){
+      if(!window.XLSX) await loadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
+      const wb=XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(t.osobe),"Osobe");
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(t.brakovi),"Brakovi");
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(t.roditelj_dijete),"Roditelj-dijete");
+      XLSX.writeFile(wb,base+".xlsx");
+    }
+  }
+  btn.onclick=e=>{ e.stopPropagation(); menu.classList.toggle("open"); };
+  menu.addEventListener("click",async e=>{ const b=e.target.closest("button[data-fmt]"); if(!b) return; menu.classList.remove("open");
+    try{ await doExport(b.dataset.fmt); }catch(err){ console.error(err); alert(b.dataset.fmt==="xlsx"?"Excel izvoz treba internet (učitava biblioteku). Probaj CSV ili JSON.":"Izvoz nije uspio."); } });
+  document.addEventListener("click",e=>{ if(wrap && !wrap.contains(e.target)) menu.classList.remove("open"); });
+})();
 
 /* ---- Provjeri povezanost (tko ti tko dođe + isticanje lanca veza) ---- */
 (function(){

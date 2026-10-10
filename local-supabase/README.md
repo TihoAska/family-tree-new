@@ -11,5 +11,7 @@ Portovi su 55xxx, da se ne sudara s drugim Supabase projektima.
 - API: http://127.0.0.1:55321, Studio: http://127.0.0.1:55323
 - Stranica: iz korijena repoa `npx live-server --port=3000 --open=index.html`
   (na localhostu koristi LOKALNI Supabase; `?cloud` u adresi prisiljava oblak, GitHub Pages uvijek koristi oblak)
+- Baza je normalizirana: `persons`, `marriages`, `parent_child`, `person_history` (povijest izmjena). Stranica čita preko `get_tree()`.
+- Stara tablica `tree` (jedan JSON) ostaje kao izvor za uvoz (`import_tree_json()`) dok se sve ne potvrdi.
 - `supabase/seed.sql` sadrži podatke stabla i NIJE u gitu (osobni podaci). Bez njega baza ima samo prazne tablice.
 - Lokalni korisnik se pravi preko Auth admin API-ja ili Studija (Authentication, Users).
