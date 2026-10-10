@@ -92,8 +92,8 @@
   #side header{padding:16px 18px 10px;border-bottom:1px solid #1c2f57}
   #side header h1{margin:0;font-size:18px;color:var(--gold)}
   #side header p{margin:4px 0 0;font-size:12px;color:var(--muted)}
-  #detail{padding:14px 18px;border-bottom:1px solid #1c2f57;min-height:110px;
-          max-height:46vh;overflow-y:auto}
+  #detail{padding:14px 18px;border-bottom:1px solid #1c2f57;min-height:0;
+          flex:1 1 auto;overflow-y:auto}
   #detail .dn{font-size:16px;font-weight:700;margin:0 0 2px}
   #detail .dy{font-size:12.5px;color:var(--gold);margin:0 0 8px;font-weight:600}
   #detail .di{font-size:13px;line-height:1.5;color:#c4d2ec;margin:0}
@@ -132,12 +132,23 @@
   #hint3d{position:absolute;left:0;right:0;bottom:60px;z-index:5;display:none;text-align:center;pointer-events:none}
   #hint3d span{display:inline-block;font-size:12.5px;color:var(--ink);background:#0b1836dd;
         padding:6px 14px;border-radius:8px;border:1px solid #33507f}
-  #notes{padding:14px 18px;overflow:auto;flex:1}
+  #notes{padding:14px 18px;flex:none;border-top:1px solid #1c2f57}
   #notes h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 8px}
   #notes ul{margin:0 0 14px;padding-left:18px}
   #notes li{font-size:12px;line-height:1.5;margin-bottom:6px;color:#c4d2ec}
   .warn{background:#2a2412;border:1px solid #5a4a1e;border-radius:8px;padding:8px 10px;
         font-size:12px;line-height:1.45;color:#e8cf9a;margin-bottom:14px}
+  #notes .legend{list-style:none;margin:0;padding:0}
+  .legend li{margin-bottom:10px;font-size:12px;color:#c4d2ec}
+  .legend i{display:block;width:100%;margin-top:4px}
+  #addinfo{flex:none;padding:10px 18px 12px;border-top:1px solid #1c2f57}
+  #addinfo .ailbl{font-size:11px;color:var(--muted);margin-bottom:5px}
+  #addinfo textarea{width:100%;box-sizing:border-box;min-height:110px;resize:vertical;background:#0c1a3a;color:#dbe4f5;
+    border:1px solid #33507f;border-radius:6px;padding:7px;font:inherit;font-size:12.5px}
+  #addinfo button{margin-top:6px;background:#1b356b;color:#dbe4f5;border:1px solid #33507f;border-radius:6px;padding:6px 12px;cursor:pointer}
+  #addinfo button:hover{background:#254a8f}
+  #addinfo .aimsg{font-size:12px;margin-top:5px}
+  #addinfo .aidl{display:inline-block;margin-left:10px;font-size:11px;color:var(--muted);text-decoration:underline;cursor:pointer}
   .swatch{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:middle}
   #menuBtn,#sideBackdrop{display:none}
   #menuBtn.glow{border-color:#ff6b6b;color:#ff9a9a;animation:mpulse 1.4s ease-in-out infinite}
@@ -225,7 +236,6 @@
       <div class="combo"><input id="findIn" class="combo-in" placeholder="🔍 Traži osobu…" autocomplete="off"><div id="findList" class="combo-list"></div></div>
       <div id="memberCount"></div>
     </div>
-    <div id="detail"><p class="empty">Traži ili klikni na čvor da vidiš podatke o osobi.</p></div>
     <div id="rel">
       <h2>Provjeri povezanost</h2>
       <label>Osoba 1</label>
@@ -235,6 +245,8 @@
       <button id="relGo">Provjeri</button>
       <div id="relOut"></div>
     </div>
+    <div id="detail"><p class="empty">Traži ili klikni na čvor da vidiš podatke o osobi.</p></div>
+    <div id="addinfo"><div class="ailbl"></div><textarea placeholder="Upiši što znaš o ovoj osobi…"></textarea><button type="button">Spremi</button><a href="#" class="aidl">⬇ Preuzmi sve bilješke (.txt)</a><div class="aimsg"></div></div>
     <div id="notes"></div>
     <button id="contactBtn">✉ Kontaktiraj autora</button>
     <button id="logout">Odjava</button>
@@ -255,8 +267,10 @@
   </div>
 </div>
 
-<script>const SUPA_URL="https://hxydndikdcjbnmfdhvus.supabase.co";
-const SUPA_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4eWRuZGlrZGNqYm5tZmRodnVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0NjQxMDEsImV4cCI6MjEwMDA0MDEwMX0.kYG-FfSIwQAsFPD57owyM2o5Ihot-TbBGl8tdoohW8o";
+<script>/* na localhostu se koristi LOKALNI Supabase (Docker, port 55321); ?cloud u adresi prisiljava oblak */
+const ON_LOCAL=/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&!/[?&]cloud(&|$)/.test(location.search);
+const SUPA_URL=ON_LOCAL?"http://127.0.0.1:55321":"https://hxydndikdcjbnmfdhvus.supabase.co";
+const SUPA_KEY=ON_LOCAL?"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4eWRuZGlrZGNqYm5tZmRodnVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0NjQxMDEsImV4cCI6MjEwMDA0MDEwMX0.kYG-FfSIwQAsFPD57owyM2o5Ihot-TbBGl8tdoohW8o";
 const sb=window.supabase.createClient(SUPA_URL,SUPA_KEY);
 const loginBox=document.getElementById("login"), appBox=document.getElementById("app"),
       userIn=document.getElementById("userIn"), pwIn=document.getElementById("pw"),
@@ -597,7 +611,7 @@ function refreshSib(){
                         L.el.setAttribute("x2",L.b.x);L.el.setAttribute("y2",L.b.y); });
 }
 function clearSelection(){
-  selected=null;
+  selected=null; setInfoTarget(null);
   rootG.classList.remove("dim");
   clearMarks();
   if(window.__clearMark) window.__clearMark();
@@ -612,6 +626,7 @@ function fillDetail(id){
   d.querySelector(".dn").textContent=p.n;
   d.querySelector(".dy").textContent=years||"godine nepoznate";
   d.querySelector(".di").textContent=p.info||"—";
+  setInfoTarget(id);
 }
 function showPerson(id){
   const p=persons[id]; if(!p) return;
@@ -673,6 +688,7 @@ function showPerson(id){
   d.querySelector(".dn").textContent=p.n;
   d.querySelector(".dy").textContent=years||"godine nepoznate";
   d.querySelector(".di").textContent=p.info||"—";
+  setInfoTarget(id);
 }
 
 function build(){
@@ -705,13 +721,75 @@ function refresh(){
 
 // --- notes panel ---
 document.getElementById("notes").innerHTML=`
-  <h2>Boje odnosa (kad klikneš čvor)</h2>
-  <ul style="list-style:none;padding-left:0">
-    <li><span class="swatch" style="background:#e8b45e"></span>supružnik (brak)</li>
-    <li><span class="swatch" style="background:#5db4e0"></span>roditelji</li>
-    <li><span class="swatch" style="background:#63d6a6"></span>djeca</li>
-    <li><span class="swatch" style="background:#f0996b"></span>braća / sestre <span style="color:var(--muted)">(isprekidana linija)</span></li>
+  <ul class="legend">
+    <li><span>supružnik</span><i style="border-top:3px solid #e8b45e"></i></li>
+    <li><span>roditelji</span><i style="border-top:3px solid #5db4e0"></i></li>
+    <li><span>djeca</span><i style="border-top:3px solid #63d6a6"></i></li>
+    <li><span>braća / sestre</span><i style="border-top:3px dashed #f0996b"></i></li>
   </ul>`;
+
+/* ---- brze bilješke o osobi: prvo odmah u localStorage (red čekanja), pa u Supabase tablicu person_notes.
+        Ako nema veze, ostaje u redu i šalje se kasnije — ne gubi se. ---- */
+var infoTarget=null;
+const NOTE_QK="stablo-notes-queue";
+const noteQ=()=>{ try{ return JSON.parse(localStorage.getItem(NOTE_QK)||"[]"); }catch(e){ return []; } };
+const NOTE_AK="stablo-notes-all";   // trajni arhiv na uređaju — ne briše se nakon slanja
+const noteArch=()=>{ try{ return JSON.parse(localStorage.getItem(NOTE_AK)||"[]"); }catch(e){ return []; } };
+function downloadNotes(){
+  const a=noteArch(); if(!a.length){ showPending("Nema spremljenih bilješki."); return; }
+  const NL=String.fromCharCode(10);
+  const txt=a.map(n=>"["+new Date(n.t).toLocaleString("hr-HR")+"] "+n.name+NL+n.text).join(NL+NL)+NL;
+  const url=URL.createObjectURL(new Blob([txt],{type:"text/plain;charset=utf-8"}));
+  const l=document.createElement("a"); l.href=url; l.download="biljeske-"+new Date().toISOString().slice(0,10)+".txt";
+  document.body.appendChild(l); l.click(); l.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+const noteQSet=a=>{ try{ localStorage.setItem(NOTE_QK,JSON.stringify(a)); }catch(e){} };
+function setInfoTarget(id){
+  infoTarget=id?{id,name:persons[id].n}:null;
+  const box=document.getElementById("addinfo"); if(!box) return;
+  box.style.display=infoTarget?"":"none";
+  if(infoTarget) box.querySelector(".ailbl").textContent="Dodaj informaciju o: "+infoTarget.name;
+  showPending();
+}
+function showPending(msg,color){
+  const ms=document.querySelector("#addinfo .aimsg"); if(!ms) return;
+  const n=noteQ().length;
+  ms.style.color=color||"#9ad6a0";
+  ms.textContent=(msg||"")+(n?(msg?" ":"")+"Čeka slanje: "+n:"");
+}
+let flushing=false;
+async function flushNotes(){
+  if(flushing||!noteQ().length) return; flushing=true;
+  try{
+    const {data}=await sb.auth.getSession(); if(!data.session) return;
+    const rest=[];
+    for(const n of noteQ()){
+      const {error}=await sb.from("person_notes").insert({person_id:n.pid,person_name:n.name,note:n.text,created_at:n.t});
+      if(error){ console.error(error); rest.push(n); }
+    }
+    noteQSet(rest);
+  }catch(e){ console.error(e); }
+  finally{ flushing=false; showPending(); }
+}
+(function(){
+  const box=document.getElementById("addinfo");
+  const ta=box.querySelector("textarea"), bt=box.querySelector("button");
+  setInfoTarget(null);
+  bt.addEventListener("click", async ()=>{
+    const t=(ta.value||"").trim(); if(!infoTarget||!t) return;
+    const item={pid:infoTarget.id,name:infoTarget.name,text:t,t:new Date().toISOString()};
+    const q=noteQ(); q.push(item); noteQSet(q);
+    try{ const ar=noteArch(); ar.push(item); localStorage.setItem(NOTE_AK,JSON.stringify(ar)); }catch(e){}
+    ta.value=""; showPending("Spremljeno ✓");
+    await flushNotes();
+    if(noteQ().length) showPending("Spremljeno na uređaju, šalje se kad bude veze.","#e8b45e");
+    else showPending("Spremljeno ✓");
+  });
+  box.querySelector(".aidl").addEventListener("click",e=>{ e.preventDefault(); downloadNotes(); });
+  window.addEventListener("online",flushNotes);
+  setInterval(flushNotes,30000);
+  setTimeout(flushNotes,3000);
+})();
 
 /* ---- pan / zoom / drag ---- */
 let view={tx:0,ty:0,s:1};

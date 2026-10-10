@@ -1,0 +1,9 @@
+# OSOBNI PODACI, ne idu na javni GitHub
+local-supabase/supabase/seed.sql
+local-supabase/supabase-update.sql
+local-supabase/supabase-data.json
+CLAUDE.md
+local-supabase/supabase/.temp/
+local-supabase/supabase/.branches/
+.claude/
+local-supabase/supabase-make-admin.sql
