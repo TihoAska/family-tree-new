@@ -237,6 +237,58 @@ end $$;
 revoke all on function public.delete_person(text), public.restore_person(text) from public, anon;
 grant execute on function public.delete_person(text), public.restore_person(text) to authenticated;
 
+-- ---------- povezivanje postojećih osoba i uklanjanje veze (samo admin) ----------
+-- connect_people(A, vrsta, B):  'spouse' = A i B su supružnici, 'child' = B je dijete osobe A, 'parent' = B je roditelj osobe A.
+-- Jedina pravila: osoba se ne može povezati sama sa sobom, a ista veza ne može postojati dvaput.
+create or replace function public.connect_people(p_a text, p_relation text, p_b text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Samo admin može povezivati osobe.'; end if;
+  if p_relation not in ('spouse','child','parent') then raise exception 'Nepoznata vrsta veze.'; end if;
+  if p_a = p_b then raise exception 'Osoba se ne može povezati sama sa sobom.'; end if;
+  if not exists (select 1 from persons where id = p_a and deleted_at is null)
+     or not exists (select 1 from persons where id = p_b and deleted_at is null) then
+    raise exception 'Osoba nije pronađena.';
+  end if;
+  if p_relation = 'spouse' then
+    if exists (select 1 from marriages where (person_a = p_a and person_b = p_b) or (person_a = p_b and person_b = p_a)) then
+      raise exception 'Ova veza već postoji.'; end if;
+    insert into marriages (person_a, person_b) values (p_a, p_b);
+  elsif p_relation = 'child' then
+    if exists (select 1 from parent_child where parent_id = p_a and child_id = p_b) then
+      raise exception 'Ova veza već postoji.'; end if;
+    insert into parent_child (parent_id, child_id) values (p_a, p_b);
+  else
+    if exists (select 1 from parent_child where parent_id = p_b and child_id = p_a) then
+      raise exception 'Ova veza već postoji.'; end if;
+    insert into parent_child (parent_id, child_id) values (p_b, p_a);
+  end if;
+  insert into person_history(person_id, field, old_value, new_value, changed_by)
+    values (p_a, 'link_added', null, p_relation || ':' || p_a || '>' || p_b, auth.uid());
+end $$;
+
+-- disconnect_people(vrsta, A, B): 'spouse' = ukloni brak A i B; 'parent' = ukloni vezu u kojoj je A roditelj osobe B.
+create or replace function public.disconnect_people(p_kind text, p_a text, p_b text) returns void
+language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  if not public.is_admin() then raise exception 'Samo admin može uklanjati veze.'; end if;
+  if p_kind = 'spouse' then
+    delete from marriages where (person_a = p_a and person_b = p_b) or (person_a = p_b and person_b = p_a);
+  elsif p_kind = 'parent' then
+    delete from parent_child where parent_id = p_a and child_id = p_b;
+  else
+    raise exception 'Nepoznata vrsta veze.';
+  end if;
+  get diagnostics n = row_count;
+  if n = 0 then raise exception 'Veza ne postoji.'; end if;
+  insert into person_history(person_id, field, old_value, new_value, changed_by)
+    values (p_a, 'link_removed', p_kind || ':' || p_a || '>' || p_b, null, auth.uid());
+end $$;
+
+revoke all on function public.connect_people(text, text, text), public.disconnect_people(text, text, text) from public, anon;
+grant execute on function public.connect_people(text, text, text), public.disconnect_people(text, text, text) to authenticated;
+
 -- ---------- uvoz iz stare tablice tree: svaka osoba dobiva novi UUID, veze i pozicije se prevode ----------
 -- Bez force=true ne radi ništa ako persons već ima podataka (da se uređivanja ne prepišu slučajno).
 create or replace function public.import_tree_json(force boolean default false) returns text

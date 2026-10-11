@@ -72,6 +72,7 @@
   #adminbadge{position:absolute;left:14px;top:56px;z-index:6;display:none;
         background:#3a2a00;border:1px solid #b98b1e;color:#ffd27a;font-size:11px;font-weight:700;
         padding:3px 8px;border-radius:6px;letter-spacing:.05em}
+  #stage{-webkit-user-select:none;user-select:none}   /* na grafu se tekst ne označava ni povlači */
   #stage.admin{cursor:crosshair}
 
   #controls{position:absolute;left:14px;top:14px;display:flex;flex-wrap:wrap;gap:6px;max-width:calc(100% - 28px);z-index:5}
@@ -106,14 +107,29 @@
   #side header p{margin:4px 0 0;font-size:12px;color:var(--muted)}
   #detail{padding:14px 18px;border-bottom:1px solid #1c2f57;min-height:120px;
           flex:1 0 auto}
-  #detail .pencil{background:none;border:0;color:var(--gold);cursor:pointer;font-size:15px;padding:0 4px;margin-left:4px}
-  #detail .pencil:hover{color:#fff}
+  #detail .actrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center}
+  #detail .actbtn{background:#1b356b;color:var(--ink);border:1px solid #33507f;border-radius:6px;padding:6px 14px;font-size:12.5px;cursor:pointer}
+  #detail .actbtn:hover:not(:disabled){background:#254a8f}
+  #detail .act-edit.ok{background:#1f6b3a;border-color:#2f9e57;color:#e8ffef}
+  #detail .act-edit.ok:hover{background:#26804a}
+  #detail .act-del{color:#ff9a9a;border-color:#5a2e3e;background:#2a1520}
+  #detail .act-del:hover:not(:disabled){background:#3a1c2a}
+  #detail .dd{position:relative}
+  #detail .ddmenu{position:absolute;top:34px;left:0;min-width:140px;display:none;flex-direction:column;gap:1px;padding:4px;background:#0e1e42;border:1px solid #33507f;border-radius:6px;z-index:20;box-shadow:0 8px 24px #000a}
+  #detail .ddmenu.open{display:flex}
+  #detail .rmx{margin-left:8px;color:#ff9a9a;cursor:pointer;font-weight:700;font-size:15px;padding:0 5px;border-radius:4px}
+  #detail .rmx:hover{background:#3a1c2a;color:#fff}
+  #detail .cf-list{display:flex;flex-direction:column;gap:1px;margin-bottom:4px}
+  #detail .cf-item{text-align:left;padding:6px 8px;font-size:12px;border:0;border-radius:4px;background:#12244d;color:#dbe4f5;cursor:pointer}
+  #detail .cf-item:hover{background:#254a8f}
+  #detail .cf-sel{font-size:12px;margin:2px 0 6px;line-height:1.4}
+  #detail .ddi{text-align:left;padding:7px 12px;font-size:12.5px;border:0;border-radius:4px;background:transparent;color:#dbe4f5;cursor:pointer}
+  #detail .ddi:hover:not(:disabled){background:#254a8f}
+  #detail .ddi:disabled{opacity:.45;cursor:not-allowed}
   #detail .ed{width:100%;box-sizing:border-box;background:#0c1a3a;color:#dbe4f5;border:1px solid #33507f;border-radius:6px;padding:5px 7px;font:inherit;font-size:13px}
   #detail .ed-i{min-height:90px;resize:vertical;margin-top:4px}
   #detail .edyr{display:flex;gap:6px;margin:4px 0}
   #detail .estat{font-size:12px;margin-left:6px}
-  #detail .addrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px}
-  #detail .addrow .al{font-size:11px;color:var(--muted);margin-right:2px}
   #detail .addbtn{background:#12244d;color:#dbe4f5;border:1px solid #33507f;border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer}
   #detail .addbtn:hover:not(:disabled){background:#1b356b}
   #detail .delbtn{color:#ff9a9a;border-color:#5a2e3e;background:#2a1520}
@@ -679,6 +695,7 @@ function fillDetail(id){
 }
 function showPerson(id){
   const p=persons[id]; if(!p) return;
+  window.__pickCb=null;
   if(window.__markSelected) window.__markSelected();
   selected=id;
   const n=nodeById[id];
@@ -718,20 +735,16 @@ function showPerson(id){
   // popis odnosa ispod opisa: broj + lista imena (s godinama)
   const esc=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   const yrOf=nd=>{ const q=persons[nd.id]; let y=""; if(q.born)y="* "+q.born; if(q.died)y+=(y?"  ":"")+"† "+q.died; return y; };
-  const sec=(label,arr,tagFn)=>{ if(!arr.length) return "";
+  const sec=(label,arr,tagFn,kind)=>{ if(!arr.length) return "";
     const items=arr.map(nd=>{ const y=yrOf(nd), tag=tagFn?tagFn(nd):"";
       return "<li data-id='"+esc(nd.id)+"'>"+esc(persons[nd.id].n)
-           +(tag?"<span class='rtag'>"+tag+"</span>":"")+(y?"<span class='ry'>"+y+"</span>":"")+"</li>"; }).join("");
+           +(tag?"<span class='rtag'>"+tag+"</span>":"")+(y?"<span class='ry'>"+y+"</span>":"")
+           +(kind&&window.__isAdmin?"<span class='rmx' title='Ukloni vezu' data-kind='"+kind+"' data-id='"+esc(nd.id)+"'>×</span>":"")+"</li>"; }).join("");
     return "<div class='relgrp'><div class='relh'>"+label+": "+arr.length+"</div><ul class='rell'>"+items+"</ul></div>"; };
-  // supružnike razvrstaj na žene/muževe po opisu (info); ostalo pod „Supružnici"
-  const wives=[], husbands=[], otherSp=[];
-  spousesOf.forEach(sp=>{ const inf=persons[sp.id].info||"";
-    if(/^\s*muž/i.test(inf)) husbands.push(sp);
-    else if(/žena/i.test(inf)) wives.push(sp);
-    else otherSp.push(sp); });
+  // svi supružnici idu pod „Supružnici" (bez pogađanja žena/muževa iz opisa)
   const selKey=groupKey(id);
-  const rel = sec("Roditelji",parentsOf) + sec("Žene",wives) + sec("Muževi",husbands)
-            + sec("Supružnici",otherSp) + sec("Djeca",childrenOf)
+  const rel = sec("Roditelji",parentsOf,null,"parent")
+            + sec("Supružnici",spousesOf,null,"spouse") + sec("Djeca",childrenOf,null,"child")
             + sec("Braća i sestre",siblingsOf, nd=> groupKey(nd.id)===selKey ? "" : "(polubrat/polusestra)");
   d.innerHTML='<p class="dn"></p><p class="dy"></p><p class="di"></p>'+(rel?'<div class="relbox">'+rel+'</div>':'');
   d.querySelector(".dn").textContent=p.n;
@@ -753,7 +766,9 @@ function build(){
     const yline = p.born ? (p.died? p.born+"–"+p.died : "* "+p.born) : (p.died? "† "+p.died : "");
     if(yline) g.appendChild(el("text",{class:"yr",y:n.r+29},yline));
     g.addEventListener("mousedown",ev=>startNodeDrag(ev,n));
-    g.addEventListener("click",ev=>{ if(!draggedMoved) showPerson(n.id); });
+    g.addEventListener("click",ev=>{ if(draggedMoved) return; if(window.__pickCb){ window.__pickCb(n.id); return; }
+      if(multiMode){ if(groupSel.has(n)){ groupSel.delete(n); g.classList.remove("gsel"); } else { groupSel.add(n); g.classList.add("gsel"); } return; }   // Enable multiselect: klik dodaje/uklanja planet iz odabira
+      showPerson(n.id); });
     g.addEventListener("mouseenter",()=>hoverOn(n));
     g.addEventListener("mouseleave",()=>hoverOff(n));
     n.g=g; nodesG.appendChild(g);
@@ -781,20 +796,36 @@ document.getElementById("notes").innerHTML=`
 function decorateDetail(d,id){
   if(!window.__isAdmin) return;
   const di=d.querySelector(".di"); if(!di) return;
-  const b=document.createElement("button"); b.type="button"; b.className="pencil"; b.title="Uredi"; b.textContent="✎";
-  b.addEventListener("click",()=>startEdit(d,id));
-  di.appendChild(b);
-  // dodavanje osoba: supružnik, dijete, roditelj, brat/sestra (sprema se u bazu, pa se stranica ponovno učita)
-  const row=document.createElement("div"); row.className="addrow";
-  const lbl=document.createElement("span"); lbl.className="al"; lbl.textContent="Dodaj:"; row.appendChild(lbl);
-  [["spouse","+ Supružnik"],["child","+ Dijete"],["parent","+ Roditelj"],["sibling","+ Brat/sestra"]].forEach(([rel,txt])=>{
-    const ab=document.createElement("button"); ab.type="button"; ab.className="addbtn"; ab.textContent=txt;
-    if(rel==="parent" && parents.filter(([a,c])=>c===id).length>=2){ ab.disabled=true; ab.title="Osoba već ima dva roditelja"; }
-    ab.addEventListener("click",()=>startAdd(d,id,rel,row));
-    row.appendChild(ab);
+  const row=document.createElement("div"); row.className="actrow";
+  const mk=(cls,txt,title)=>{ const b=document.createElement("button"); b.type="button"; b.className="actbtn "+cls; b.textContent=txt; if(title) b.title=title; return b; };
+  // Uredi (u uređivanju postaje zeleni „Potvrdi")
+  const edit=mk("act-edit","Uredi","Uredi ime, godine, opis, boju i sjaj");
+  let finish=null;
+  // Dodaj ▾ (padajući izbornik)
+  const dd=document.createElement("div"); dd.className="dd";
+  const add=mk("act-add","Dodaj ▾","Dodaj supružnika, dijete, roditelja ili brata/sestru");
+  const menu=document.createElement("div"); menu.className="ddmenu";
+  [["spouse","Supružnik"],["child","Dijete"],["parent","Roditelj"],["sibling","Brat/sestra"]].forEach(([rel,txt])=>{
+    const it=document.createElement("button"); it.type="button"; it.className="ddi"; it.textContent=txt;
+    if(rel==="parent" && parents.filter(([a,c])=>c===id).length>=2){ it.disabled=true; it.title="Osoba već ima dva roditelja"; }
+    it.addEventListener("click",()=>{ menu.classList.remove("open"); startAdd(d,id,rel,row); });
+    menu.appendChild(it);
   });
-  const del=document.createElement("button"); del.type="button"; del.className="addbtn delbtn"; del.textContent="Obriši osobu";
-  del.title="Meko brisanje: osoba se skriva i može se vratiti iz baze";
+  // Poveži ▾ (povezivanje POSTOJEĆE osobe)
+  const dd2=document.createElement("div"); dd2.className="dd";
+  const con=mk("act-con","Poveži ▾","Poveži postojeću osobu kao supružnika, dijete ili roditelja");
+  const menu2=document.createElement("div"); menu2.className="ddmenu";
+  [["spouse","Supružnik"],["child","Dijete"],["parent","Roditelj"]].forEach(([rel,txt])=>{
+    const it=document.createElement("button"); it.type="button"; it.className="ddi"; it.textContent=txt;
+    it.addEventListener("click",()=>{ menu2.classList.remove("open"); startConnect(d,id,rel,row); });
+    menu2.appendChild(it);
+  });
+  con.addEventListener("click",e=>{ e.stopPropagation(); menu.classList.remove("open"); menu2.classList.toggle("open"); });
+  dd2.appendChild(con); dd2.appendChild(menu2);
+  add.addEventListener("click",e=>{ e.stopPropagation(); menu2.classList.remove("open"); menu.classList.toggle("open"); });
+  dd.appendChild(add); dd.appendChild(menu);
+  // Obriši (meko brisanje)
+  const del=mk("act-del","Obriši","Meko brisanje: osoba se skriva i može se vratiti iz baze");
   del.addEventListener("click",async()=>{
     if(!confirm("Obrisati osobu „"+persons[id].n+"“? Osoba se samo skriva i može se vratiti iz baze.")) return;
     del.disabled=true;
@@ -803,10 +834,60 @@ function decorateDetail(d,id){
     try{ sessionStorage.setItem("keepView",JSON.stringify({tx:view.tx,ty:view.ty,s:view.s})); }catch(e){}
     location.reload();
   });
-  row.appendChild(del);
+  edit.addEventListener("click",async()=>{
+    if(finish){ await finish(); return; }   // „Potvrdi": spremi i zatvori uređivanje
+    menu.classList.remove("open"); menu2.classList.remove("open"); dd.style.display="none"; dd2.style.display="none"; del.style.display="none";
+    edit.textContent="Potvrdi ✓"; edit.classList.add("ok"); edit.title="Potvrdi i zatvori uređivanje";
+    finish=startEdit(d,id);
+  });
+  row.appendChild(edit); row.appendChild(dd); row.appendChild(dd2); row.appendChild(del);
   di.insertAdjacentElement("afterend",row);
 }
+document.addEventListener("click",()=>document.querySelectorAll(".ddmenu.open").forEach(m=>m.classList.remove("open")));   // klik izvan zatvara izbornik
 window.__rerenderDetail=()=>{ if(selected && persons[selected]) showPerson(selected); };   // npr. kad se nakon prijave sazna da je korisnik admin
+// povezivanje POSTOJEĆE osobe: odabir upisivanjem imena ili klikom na planet na grafu
+function startConnect(d,id,rel,row){
+  d.querySelectorAll(".addform").forEach(f=>f.remove());
+  const p=persons[id];
+  const titles={spouse:"Poveži supružnika za: ",child:"Poveži dijete osobe: ",parent:"Poveži roditelja osobe: "};
+  const box=document.createElement("div"); box.className="addform";
+  box.innerHTML='<div class="aft"></div><input class="ed cf-q" placeholder="Upiši ime osobe…" autocomplete="off"><div class="cf-list"></div><div class="cf-sel"></div><div class="af-lbl">ili klikni planet na grafu</div><div class="af-m"></div><div class="af-btns"><button type="button" class="actbtn af-x">Odustani</button><button type="button" class="actbtn af-ok" disabled>Poveži</button></div>';
+  box.querySelector(".aft").textContent=titles[rel]+p.n;
+  const q=box.querySelector(".cf-q"), list=box.querySelector(".cf-list"), selEl=box.querySelector(".cf-sel"), msg=box.querySelector(".af-m"), ok=box.querySelector(".af-ok");
+  let chosen=null;
+  const label=x=>persons[x].n+(persons[x].born?" ("+persons[x].born+")":"")+(persons[x].info?" · "+persons[x].info.slice(0,40):"");
+  const pick=x=>{ if(x===id || !persons[x]) return; chosen=x; list.innerHTML=""; q.value=persons[x].n; selEl.style.color="#9ad6a0"; selEl.textContent="Odabrano: "+label(x); ok.disabled=false; msg.textContent=""; };
+  q.addEventListener("input",()=>{
+    const t=q.value.trim().toLowerCase(); list.innerHTML=""; chosen=null; ok.disabled=true; selEl.textContent="";
+    if(t.length<2) return;
+    Object.keys(persons).filter(x=>x!==id && persons[x].n.toLowerCase().includes(t)).slice(0,8).forEach(x=>{
+      const b=document.createElement("button"); b.type="button"; b.className="cf-item"; b.textContent=label(x); b.addEventListener("click",()=>pick(x)); list.appendChild(b); });
+  });
+  window.__pickCb=pick;   // klik na planet na grafu odabire osobu (umjesto prikaza njezinih podataka)
+  row.style.display="none"; row.insertAdjacentElement("afterend",box);
+  const close=()=>{ window.__pickCb=null; box.remove(); row.style.display=""; };
+  box.querySelector(".af-x").addEventListener("click",close);
+  ok.addEventListener("click",async()=>{
+    if(!chosen) return;
+    ok.disabled=true; msg.style.color="var(--muted)"; msg.textContent="Spremam…";
+    const {error}=await sb.rpc("connect_people",{p_a:id,p_relation:rel,p_b:chosen});
+    if(error){ console.error(error); msg.style.color="#f0996b"; msg.textContent=error.message||"Povezivanje nije uspjelo."; ok.disabled=false; return; }
+    try{ sessionStorage.setItem("keepView",JSON.stringify({tx:view.tx,ty:view.ty,s:view.s})); sessionStorage.setItem("keepSel",id); }catch(e){}
+    location.reload();
+  });
+  q.focus();
+}
+// ukloni jednu vezu (× pored osobe u popisu odnosa); ostali odnosi ostaju
+async function removeLink(kind,other){
+  const x=selected; if(!x || !persons[other]) return;
+  const args = kind==="spouse" ? {p_kind:"spouse",p_a:x,p_b:other}
+             : kind==="parent" ? {p_kind:"parent",p_a:other,p_b:x}    // „other" je roditelj osobe x
+             :                   {p_kind:"parent",p_a:x,p_b:other};   // „other" je dijete osobe x
+  const {error}=await sb.rpc("disconnect_people",args);
+  if(error){ console.error(error); alert(error.message||"Uklanjanje veze nije uspjelo."); return; }
+  try{ sessionStorage.setItem("keepView",JSON.stringify({tx:view.tx,ty:view.ty,s:view.s})); sessionStorage.setItem("keepSel",x); }catch(e){}
+  location.reload();
+}
 function startAdd(d,id,rel,row){
   d.querySelectorAll(".addform").forEach(f=>f.remove());
   const p=persons[id];
@@ -882,8 +963,7 @@ function startEdit(d,id){
   gl.appendChild(gcb); gl.appendChild(document.createTextNode(" sjaj (svijetli na grafu)"));
   colWrap.appendChild(gl);
   di.appendChild(colWrap);
-  const done=document.createElement("button"); done.type="button"; done.className="pencil"; done.title="Gotovo"; done.textContent="✓";
-  di.appendChild(done); di.appendChild(stat);
+  di.appendChild(stat);
   let timer=null, last={n:p.n,born:p.born||"",died:p.died||"",info:p.info||"",color:colPick,sibs:false,glow:!!p.eldest};
   const cur=()=>({n:name.value.trim(),born:born.value.trim(),died:died.value.trim(),info:info.value.trim(),color:colPick,sibs:sibTick,glow:glowOn});
   async function save(){
@@ -913,8 +993,8 @@ function startEdit(d,id){
   }
   const queue=()=>{ stat.style.color="var(--muted)"; stat.textContent="…"; clearTimeout(timer); timer=setTimeout(save,800); };
   [name,born,died,info].forEach(e=>e.addEventListener("input",queue));
-  done.addEventListener("click",async()=>{ if(await save()){ if(selected===id) showPerson(id); else fillDetail(id); } });
   name.focus();
+  return async()=>{ if(await save()){ if(selected===id) showPerson(id); else fillDetail(id); } };   // poziva se gumbom „Potvrdi"
 }
 
 /* ---- pan / zoom / drag ---- */
@@ -938,6 +1018,7 @@ const groupSel=new Set();
 let marquee=null, groupDrag=null;
 const stageEl=document.getElementById("stage");
 const marqEl=document.getElementById("marquee");
+stageEl.addEventListener("dragstart",e=>e.preventDefault());
 const badgeEl=document.getElementById("adminbadge");
 function clearGroup(){ groupSel.forEach(n=>n.g.classList.remove("gsel")); groupSel.clear(); }
 // osobe čiji se položaj razlikuje od spremljenog u bazi
@@ -975,24 +1056,29 @@ window.__restoreModes=()=>{ try{
 const moveInp=document.getElementById("moveinput"); if(moveInp) moveInp.onchange=()=>setMove(moveInp.checked);
 const multiInp=document.getElementById("multiinput"); if(multiInp) multiInp.onchange=()=>setMulti(multiInp.checked);
 
-svg.addEventListener("mousedown",e=>{ if(e.target.closest(".node"))return;
-  if(multiMode){ const r=stageEl.getBoundingClientRect();
+function beginPan(e){ e.preventDefault(); panning=true; panMoved=false; psx=e.clientX-view.tx; psy=e.clientY-view.ty; svg.classList.add("grabbing"); rootG.classList.add("moving"); }
+svg.addEventListener("mousedown",e=>{ if(e.button===1){ beginPan(e); return; }   // srednja tipka miša: pomicanje pogleda (i uz Enable multiselect)
+  if(e.button!==0) return;                                                      // desna tipka ne pokreće ništa
+  if(e.target.closest(".node"))return;
+  if(multiMode){ e.preventDefault(); const _sel=window.getSelection&&window.getSelection(); if(_sel) _sel.removeAllRanges(); const r=stageEl.getBoundingClientRect();
     marquee={x0:e.clientX-r.left, y0:e.clientY-r.top};
     marqEl.style.left=marquee.x0+"px"; marqEl.style.top=marquee.y0+"px";
     marqEl.style.width="0px"; marqEl.style.height="0px"; marqEl.style.display="block";
     if(!e.shiftKey) clearGroup(); return; }
-  panning=true;panMoved=false;psx=e.clientX-view.tx;psy=e.clientY-view.ty;svg.classList.add("grabbing"); rootG.classList.add("moving"); });
+  beginPan(e); });
 svg.addEventListener("click",e=>{ if(!e.target.closest(".node") && !panMoved && !multiMode && selected) clearSelection(); });
 let dragNode=null,draggedMoved=false,goffx,goffy;
 function startNodeDrag(ev,n){ ev.stopPropagation(); draggedMoved=false;
+  if(ev.button===1){ beginPan(ev); return; }   // srednja tipka miša pomiče pogled i kad je pritisnuta iznad planeta
+  if(ev.button!==0) return;
   if(!moveMode) return;   // raspored je zaključan dok admin ne uključi „Enable movement"
+  ev.preventDefault();   // bez označavanja i povlačenja teksta
   rootG.classList.add("moving");
   if(groupSel.has(n)){
     const wx=(ev.clientX-view.tx)/view.s, wy=(ev.clientY-view.ty)/view.s;
     const base=new Map(); groupSel.forEach(g=>base.set(g,{x:g.x,y:g.y}));
     groupDrag={wx,wy,base}; return; }
-  clearGroup();
-  dragNode=n;
+  dragNode=n;   // odabir (ako postoji) ostaje; povlači se samo ovaj planet
   const gx=(ev.clientX-view.tx)/view.s, gy=(ev.clientY-view.ty)/view.s;
   goffx=gx-n.x; goffy=gy-n.y; }
 window.addEventListener("mousemove",e=>{
@@ -1156,6 +1242,7 @@ requestAnimationFrame(()=>rootG.classList.add("ready"));   // fade in stabla
 // nakon brisanja (ponovno učitavanje): vrati zoom i položaj pogleda
 try{ const kv=JSON.parse(sessionStorage.getItem("keepView")||"null"); sessionStorage.removeItem("keepView");
   if(kv){ view.tx=kv.tx; view.ty=kv.ty; view.s=kv.s; apply(); } }catch(e){}
+try{ const ks=sessionStorage.getItem("keepSel"); sessionStorage.removeItem("keepSel"); if(ks && nodeById[ks]) showPerson(ks); }catch(e){}
 if(window.__isAdmin && window.__restoreModes) window.__restoreModes();   // admin je možda već poznat
 // nakon dodavanja osobe (ponovno učitavanje): vrati zoom, centriraj i odaberi novu osobu
 try{
@@ -1313,7 +1400,8 @@ document.getElementById("savepos").onclick=async function(){
   if(findIn) setupCombo(findIn, document.getElementById("findList"), id=>{ centerOn(id); showPerson(id); }, findOpts);
   // klik na ime u popisu odnosa -> označi tu osobu i centriraj je na mapi
   const detEl=document.getElementById("detail");
-  if(detEl) detEl.addEventListener("click",e=>{ const li=e.target.closest("li[data-id]"); if(!li) return;
+  if(detEl) detEl.addEventListener("click",e=>{ const x=e.target.closest(".rmx"); if(x){ e.stopPropagation(); removeLink(x.getAttribute("data-kind"),x.getAttribute("data-id")); return; }
+    const li=e.target.closest("li[data-id]"); if(!li) return;
     const id=li.getAttribute("data-id"); if(nodeById[id]){ centerOn(id); showPerson(id); } });
   const mc=document.getElementById("memberCount");
   if(mc) mc.textContent="Ukupan broj članova: "+Object.keys(persons).length;
