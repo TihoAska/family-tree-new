@@ -311,8 +311,6 @@
     <div id="notes"></div>
     <button id="contactBtn">✉ Kontaktiraj autora</button>
     <button id="logout">Odjava</button>
-    <div id="dbg" style="display:none;margin:6px 18px 12px;font-size:11px;line-height:1.5;color:#8ea3c8;
-         font-family:monospace;white-space:pre-wrap;word-break:break-all"></div>
   </div>
 </div>
 
@@ -346,24 +344,6 @@ function applyAdmin(user){
   if(isAdmin && window.__restoreModes) window.__restoreModes();
   const ew=document.getElementById("exportwrap"); if(ew) ew.style.display = isAdmin ? "" : "none";
   ["movetoggle","multitoggle"].forEach(x=>{ const e=document.getElementById(x); if(e) e.style.display = isAdmin ? "" : "none"; });
-  if(isAdmin){
-    const dbg=document.getElementById("dbg");
-    if(dbg){
-      dbg.style.display="block";
-      const upd=()=>{ const vv=window.visualViewport;
-        dbg.textContent=
-          "innerH: "+innerHeight+"\n"+
-          "app.offsetH: "+appBox.offsetHeight+"\n"+
-          "doc.clientH: "+document.documentElement.clientHeight+"\n"+
-          "screen.H: "+screen.height+"\n"+
-          "visualVP.H: "+(vv?Math.round(vv.height):"-")+"\n"+
-          "dpr: "+(window.devicePixelRatio||1); };
-      upd();
-      window.addEventListener("resize",upd);
-      window.addEventListener("orientationchange",upd);
-      if(window.visualViewport) window.visualViewport.addEventListener("resize",upd);
-    }
-  }
 }
 async function loadAndStart(){
   try{
