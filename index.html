@@ -177,11 +177,16 @@
         box-shadow:0 6px 18px #0008}
   .combo-list.open{display:block}
   .combo-item{padding:5px 8px;font-size:12.5px;cursor:pointer;border-bottom:1px solid #16264a}
-  .combo-item:hover{background:#1b356b}
+  .combo-item:hover,.combo-item.active{background:#1b356b}
   .combo-item .hint{display:block;font-size:10.5px;color:var(--muted)}
-  #relGo{margin-top:6px;background:#1b356b;color:var(--ink);border:1px solid #33507f;
-        border-radius:6px;padding:6px 14px;font-size:12.5px;cursor:pointer}
-  #relGo:hover{background:#254a8f}
+  .relbtns{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+  #relGo,#relClear{width:100%;box-sizing:border-box;background:#1b356b;color:var(--ink);border:1px solid #33507f;
+        border-radius:6px;padding:5px 6px;font-size:12.5px;cursor:pointer}
+  #relGo:hover,#relClear:hover{background:#254a8f}
+  #relClear{background:#12244d}
+  #relClear.hide{display:none}
+  #relGo:disabled{opacity:.45;cursor:not-allowed}
+  #relGo:disabled:hover{background:#1b356b}
   #relOut{margin-top:10px;font-size:12.5px;line-height:1.5;color:#dbe4f5}
   #relOut .relpath{color:var(--muted);font-size:11.5px}
   #relOut .relcoef{color:var(--gold);font-size:11.5px;display:block;margin-top:4px}
@@ -299,7 +304,7 @@
       <div class="combo"><input id="relA" class="combo-in" placeholder="Upiši ime…" autocomplete="off"><div id="relAList" class="combo-list"></div></div>
       <label>Osoba 2</label>
       <div class="combo"><input id="relB" class="combo-in" placeholder="Upiši ime…" autocomplete="off"><div id="relBList" class="combo-list"></div></div>
-      <button id="relGo">Provjeri</button>
+      <div class="relbtns"><button id="relGo" type="button" disabled>Provjeri</button><button id="relClear" type="button" class="hide">Očisti</button></div>
       <div id="relOut"></div>
     </div>
     <div id="detail"><p class="empty">Traži ili klikni na čvor da vidiš podatke o osobi.</p></div>
@@ -531,7 +536,9 @@ parents.forEach(([p,c])=>{ (parentsOfNode[c]=parentsOfNode[c]||[]).push(p); });
 // grupa = skup djece s istim roditeljima; osobe bez roditelja su vlastita grupa
 const groupKey=id=>{ const ps=parentsOfNode[id]; return ps&&ps.length? ps.slice().sort().join("+") : "root:"+id; };
 // --- boje: svaka osoba ima spremljenu boju (persons.color) koju biraš ručno; rezerva je neutralna siva ---
-const PALETTE=["#f4dc86","#f4c99a","#ecd2a2","#f6e2b4","#f0cf8f","#f3d6b2","#8fc4ee","#c3a6ec","#a9cdee","#bcaae6","#9ad6ea","#b0bcee"];
+// prvih 9 = boje generacija od najstarije (bijela) do najmlađe; ostalo su dodatne nijanse
+const GEN_COLORS=["#cfd6e0","#78d0ea","#f4b07a","#7fb2f2","#fbe27a","#e8c4b0","#78d0ea","#b69af0","#f08fb4"];
+const PALETTE=[...new Set(GEN_COLORS.concat(["#c3a6ec","#f4dc86","#f4b58a","#9aa6f2","#ecd2a2","#f6e2b4","#a9cdee","#bcaae6"]))];   // bez dvostrukih (cijan je u dvije generacije)
 const colourFor=id=> (persons[id]&&persons[id].color) || "#cfd6e0";
 // red kružića s bojama; onPick(boja) se zove na klik
 function makeSwatches(selected,onPick){
@@ -549,7 +556,7 @@ function defaultColor(id,rel){
   const near=new Set([cur]), add=x=>{ if(persons[x]) near.add((persons[x].color||"").toLowerCase()); };
   marriages.forEach(([a,b])=>{ if(a===id) add(b); if(b===id) add(a); });
   parents.forEach(([a,c])=>{ if(a===id) add(c); if(c===id) add(a); });
-  return PALETTE.find(c=>!near.has(c)) || PALETTE[0];
+  return PALETTE.slice(1).find(c=>!near.has(c)) || PALETTE[1];   // bijela (prva) nije zadana boja
 }
 // osobe s potpuno istim roditeljima (braća i sestre); bez poznatih roditelja nema nikoga
 function sameParentSiblings(id){
@@ -679,6 +686,7 @@ function clearSelection(){
   selected=null;
   rootG.classList.remove("dim");
   clearMarks();
+  if(window.__relReset) window.__relReset();
   if(window.__clearMark) window.__clearMark();
   document.getElementById("detail").innerHTML='<p class="empty">Klikni na čvor da vidiš podatke o osobi.</p>';
 }
@@ -1344,7 +1352,7 @@ document.getElementById("savepos").onclick=async function(){
 /* ---- Provjeri povezanost (tko ti tko dođe + isticanje lanca veza) ---- */
 (function(){
   const selA=document.getElementById("relA"), selB=document.getElementById("relB"),
-        out=document.getElementById("relOut"), go=document.getElementById("relGo");
+        out=document.getElementById("relOut"), go=document.getElementById("relGo"), clr=document.getElementById("relClear");
   const opts=nodes.map(n=>({id:n.id, label:persons[n.id].n+(persons[n.id].born?" ("+persons[n.id].born+")":"")}))
                   .sort((a,b)=>a.label.localeCompare(b.label,"hr"));
   // bezimeni čvorovi (dijete, N. dijete, muž, žena, prvi muž, roditelji) ne idu u izbornike
@@ -1366,16 +1374,24 @@ document.getElementById("savepos").onclick=async function(){
   function setupCombo(input,list,onSel,optList){
     optList=optList||opts;
     input._id="";
+    let active=-1, shown=[];
+    function pick(o){ input.value=o.label; input._id=o.id; list.classList.remove("open"); active=-1; (onSel||compute)(o.id); }
+    function setActive(i){
+      const els=list.children; if(!els.length) return;
+      active=(i+els.length)%els.length;
+      for(let k=0;k<els.length;k++) els[k].classList.toggle("active",k===active);
+      els[active].scrollIntoView({block:"nearest"});
+    }
     function render(q){
       q=(q||"").toLowerCase().trim();
-      list.innerHTML="";
+      list.innerHTML=""; active=-1;
       const items=optList.filter(o=>!q||o.label.toLowerCase().includes(q)).slice(0,80);
+      shown=items;
       for(const o of items){
         const div=document.createElement("div"); div.className="combo-item";
         const h=hintFor(o.id);
         div.innerHTML="<span>"+o.label+"</span>"+(h?"<span class='hint'>"+h+"</span>":"");
-        div.addEventListener("mousedown",ev=>{ ev.preventDefault();
-          input.value=o.label; input._id=o.id; list.classList.remove("open"); (onSel||compute)(o.id); });
+        div.addEventListener("mousedown",ev=>{ ev.preventDefault(); pick(o); });
         list.appendChild(div);
       }
       list.classList.toggle("open", items.length>0);
@@ -1383,18 +1399,25 @@ document.getElementById("savepos").onclick=async function(){
     input.addEventListener("focus",()=>render(input.value));
     input.addEventListener("input",()=>{ input._id=""; render(input.value); });
     input.addEventListener("blur",()=>setTimeout(()=>list.classList.remove("open"),150));
+    // tipkovnica: strelice listaju prijedloge, Enter odabire, Escape zatvara
+    input.addEventListener("keydown",e=>{
+      if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+        e.preventDefault();
+        if(!list.classList.contains("open")) render(input.value);
+        setActive(active<0 ? (e.key==="ArrowDown"?0:-1) : active+(e.key==="ArrowDown"?1:-1));
+      } else if(e.key==="Enter"){
+        if(list.classList.contains("open") && shown.length){ e.preventDefault(); pick(shown[active>=0?active:0]); }
+      } else if(e.key==="Escape"){ list.classList.remove("open"); active=-1; }
+    });
   }
-  setupCombo(selA, document.getElementById("relAList"), null, findOpts);
-  setupCombo(selB, document.getElementById("relBList"), null, findOpts);
+  setupCombo(selA, document.getElementById("relAList"), ()=>updClr(), findOpts);   // odabir ne računa ništa, računa tek „Provjeri"
+  setupCombo(selB, document.getElementById("relBList"), ()=>updClr(), findOpts);
 
   // tražilica: centriraj mapu na osobu i istakni ju (bez traženja po mapi)
   function centerOn(id){
     const n=nodeById[id]; if(!n) return;
     const r=svg.getBoundingClientRect();
-    if(view.s<0.55) view.s=0.9;
-    view.tx=r.width/2 - n.x*view.s;
-    view.ty=r.height/2 - n.y*view.s;
-    apply();
+    glideTo(r.width/2, r.height/2, n.x, n.y, view.s<0.55 ? 0.9 : view.s);   // isti glatki prijelaz kao kod „Provjeri"
   }
   const findIn=document.getElementById("findIn");
   if(findIn) setupCombo(findIn, document.getElementById("findList"), id=>{ centerOn(id); showPerson(id); }, findOpts);
@@ -1439,6 +1462,34 @@ document.getElementById("savepos").onclick=async function(){
     return "rođak / rođakinja ("+deg+". koljeno"+(rem?", "+rem+"× razmaknuto":"")+")";
   }
 
+  // pogled se prilagodi tako da cijeli lanac veza stane na ekran
+  function fitPath(path){
+    const xs=path.map(id=>nodeById[id].x), ys=path.map(id=>nodeById[id].y), pad=30;
+    const minX=Math.min(...xs)-pad, maxX=Math.max(...xs)+pad, minY=Math.min(...ys)-pad, maxY=Math.max(...ys)+pad;
+    const r=svg.getBoundingClientRect();
+    // rubovi u pikselima: gore gumbi, dolje natpis; da lanac ne ostane ispod njih
+    const mx=60, mt=80, mb=100, aw=r.width-2*mx, ah=r.height-mt-mb;
+    const s1=Math.max(0.1, Math.min(aw/(maxX-minX), ah/(maxY-minY), 1.3));
+    glideTo(r.width/2, mt+ah/2, (minX+maxX)/2, (minY+maxY)/2, s1);
+  }
+  // glatki prijelaz pogleda: središte (u svijetu) klizi prema cilju, zoom se mijenja eksponencijalno
+  let glideId=0;
+  function glideTo(ax,ay,wx1,wy1,s1){
+    const s0=view.s, wx0=(ax-view.tx)/s0, wy0=(ay-view.ty)/s0, t0=performance.now(), D=1400, id=++glideId;
+    const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+    function step(now){
+      if(id!==glideId) return;   // prekinuto (korisnik je zumirao/povukao)
+      const t=Math.min(1,(now-t0)/D), e=ease(t);
+      view.s=s0*Math.pow(s1/s0,e);
+      const wx=wx0+(wx1-wx0)*e, wy=wy0+(wy1-wy0)*e;
+      view.tx=ax-wx*view.s; view.ty=ay-wy*view.s;
+      apply();
+      if(t<1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  ["wheel","mousedown","touchstart"].forEach(ev=>svg.addEventListener(ev,()=>{ glideId++; },{capture:true,passive:true}));
+
   function compute(){
     const a=selA._id, b=selB._id;
     if(!a||!b){ out.textContent="Odaberi obje osobe (upiši i klikni ime iz liste)."; return; }
@@ -1466,12 +1517,23 @@ document.getElementById("savepos").onclick=async function(){
       path.forEach(id=>nodeById[id].g.classList.add("keep","lit"));
       for(let i=0;i<path.length-1;i++){ const e=edgeBetween(path[i],path[i+1]); if(e) e.el.classList.add("hi","keep"); }
       selected="__path__";
+      fitPath(path);
     }
     out.innerHTML=desc+(path
       ? "<br><span class='relpath'>"+path.map(id=>persons[id].n).join(" → ")+"  ("+(path.length-1)+" veza)</span>"
       : "<br>Nisu povezani u stablu.")+coefHtml;
   }
-  go.addEventListener("click",compute);
+  go.addEventListener("click",()=>{ compute(); updClr(); });
+  // „Očisti" se vidi samo kad ima što očistiti (odabrana osoba ili ispisan opis)
+  function updClr(){
+    clr.classList.toggle("hide", !(selA.value.trim()||selB.value.trim()||out.innerHTML));
+    go.disabled = !(selA._id && selB._id);   // Provjeri radi tek kad su odabrane obje osobe
+  }
+  selA.addEventListener("input",updClr); selB.addEventListener("input",updClr);
+  // „Očisti": prazni oba izbora, opis i isticanje lanca veza
+  function resetRel(){ selA.value=""; selA._id=""; selB.value=""; selB._id=""; out.innerHTML=""; updClr(); }
+  window.__relReset=resetRel;   // klik na prazno (clearSelection) čisti i ovaj odjeljak
+  clr.addEventListener("click",()=>{ resetRel(); clearSelection(); });
 })();
 
 /* ==========================================================================
