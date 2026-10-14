@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Obiteljsko stablo</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='g' cx='38%25' cy='32%25' r='75%25'%3E%3Cstop offset='0' stop-color='%23d4f4fc'/%3E%3Cstop offset='.55' stop-color='%2378d0ea'/%3E%3Cstop offset='1' stop-color='%233a97b5'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='32' cy='32' r='29' fill='url(%23g)'/%3E%3C/svg%3E">
 <style>
   :root{
     --bg:#0b1836; --bg2:#0f2350; --panel:#0a1430; --ink:#dbe4f5; --muted:#8ea3c8;
@@ -153,6 +154,24 @@
   #detail .dn{font-size:16px;font-weight:700;margin:0 0 2px}
   #detail .dy{font-size:12.5px;color:var(--gold);margin:0 0 8px;font-weight:600}
   #detail .di{font-size:13px;line-height:1.5;color:#c4d2ec;margin:0}
+  #detail .di a.place{color:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+  #detail .di a.place:hover{color:#fff}
+  #detail .dpl{font-size:12.5px;line-height:1.5;color:#c4d2ec;margin:0 0 8px}
+  #detail .dpl:empty{display:none}
+  #detail .dpl a.place,#detail .dpl .py{color:inherit}
+  #detail .dpl a.place{text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+  #detail .dpl a.place:hover{color:#fff}
+  #detail .dpl .parr{color:var(--muted);margin:0 4px}
+  #detail .dpl .py{color:var(--muted)}
+  #detail .yrpick{display:flex;gap:6px;margin:4px 0;align-items:center}
+  #detail .yrpick .ed{flex:1;min-width:0}
+  #detail .deadtick{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);margin:0 0 6px;cursor:pointer}
+  #detail .plrow{display:flex;gap:6px;margin-bottom:5px;align-items:center}
+  #detail .plrow .pl-p{flex:1;min-width:0}
+  #detail .plrow .pl-y{width:78px;flex:none}
+  #detail .plrow .pl-x{background:none;border:0;color:#8ea3c8;font-size:16px;cursor:pointer;padding:0 4px}
+  #detail .plrow .pl-x:hover{color:#f0996b}
+  #detail .pladd{font-size:12px}
   #detail .empty{color:var(--muted);font-style:italic;font-size:13px}
   #detail .relbox{margin-top:10px;border-top:1px solid #1c2f57;padding-top:9px}
   #detail .relgrp{margin-bottom:9px}
@@ -272,9 +291,6 @@
     <canvas id="stars"></canvas>
     <div id="controls">
       <button id="toggle3d" title="Prebaci 2D / 3D">3D</button>
-      <button id="zin" title="Približi">+</button>
-      <button id="zout" title="Udalji">−</button>
-      <button id="zreset" title="Namjesti pogled">⟲</button>
       <div class="expwrap" id="exportwrap" style="display:none">
         <button id="exportpos" title="Preuzmi podatke stabla (Excel, CSV ili JSON)">Izvoz</button>
         <div id="exportmenu">
@@ -507,7 +523,7 @@ const sun=nodeById[SUN_ID]; sun.fixed=true; sun.gen=0;
 
 // --- veličine: stariji = veći, mlađi = sve manji ---
 // veličina ovisi o STAROSTI: najstariji = najveći planet (bez obzira na položaj)
-const R_MAX=32, R_MIN=8.5;
+const R_MAX=45, R_MIN=8.5;
 nodes.forEach(n=>{ n.r = n.age===null ? (R_MIN+R_MAX)/2 : (maxAge ? R_MIN+(R_MAX-R_MIN)*(n.age/maxAge) : R_MAX); });
 
 // --- boje: braća/sestre iste boje; roditelji, djeca (i djedovi) uvijek različite ---
@@ -671,14 +687,123 @@ function clearSelection(){
   document.getElementById("detail").innerHTML='<p class="empty">Klikni na čvor da vidiš podatke o osobi.</p>';
 }
 
+/* mjesta u opisima: podcrtana, klik otvara Google Maps (opis u bazi ostaje običan tekst) */
+const PLACES=[   // [prepoznavanje u tekstu, pojam za Google Maps, širina, dužina, zoom]: pretraga uz položaj karte da Google odabere baš to mjesto
+  [/Dobr[ae]tić[a-zčćđšž]*/,"Dobretići, Općina Dobretići",44.37525,17.41658,13],
+  [/Melin[a-zčćđšž]*/,"Melina, Općina Dobretići",44.37307,17.45488,14],
+  [/Vuković[a-zčćđšž]*/,"Vukovići, Općina Dobretići",44.36691,17.47101,13],
+  [/Kor[čć]an[a-zčćđšž]*/,"Korčani",44.37307,17.45488,12],
+  [/Skender Vakuf[a-zčćđšž]*/,"Skender Vakuf",44.48993,17.38009,13],
+  [/Diviča[a-zčćđšž]*/,"Divičani, Općina Jajce",44.36682,17.32666,13],
+  [/Jajc[a-zčćđšž]*/,"Jajce",44.33967,17.27118,13],
+  [/Đakovačke Selce|Selcima/,"Selci Đakovački",45.30906,18.34615,13],
+  [/Strizivojn[a-zčćđšž]*/,"Strizivojna",45.23265,18.45451,13],
+  [/Vrpolj[a-zčćđšž]*/,"Vrpolje, Općina Vrpolje",45.21024,18.40528,13],
+  [/Rumi|Ruma/,"Ruma",45.00783,19.81878,13],
+  [/Daruvar[a-zčćđšž]*/,"Daruvar",45.59283,17.22376,13],
+  [/Babina Greda|Babinu Gredu/,"Babina Greda",45.11612,18.53696,13],
+  [/Piškorev[a-zčćđšž]*/,"Piškorevci, Đakovo",45.25545,18.39904,13],
+  [/Kopru|Koper/,"Koper",45.54799,13.73048,13],
+  [/Opatij[a-zčćđšž]*/,"Opatija",45.33942,14.30524,13],
+  [/Trsta|Trst/,"Trieste",45.64965,13.77728,12],
+  [/Beču|Beč/,"Wien",48.20835,16.3725,11]
+];
+/* godine: pohranjene kao "1941." (kao i prije); umro/la bez poznate godine = "?" -> prikazuje se samo križić */
+const YR_MIN=1600, YR_MAX=new Date().getFullYear();
+const yearDigits=v=>{ const m=String(v||"").match(/\d{3,4}/); return m?m[0]:""; };
+const deathYear=p=>p.died&&p.died!=="?"?p.died:"";
+function yearsLine(p,sep){ let y=""; if(p.born) y+="* "+p.born; if(p.died) y+=(y?sep:"")+"†"+(deathYear(p)?" "+deathYear(p):""); return y; }
+function nodeYears(p){
+  const d=deathYear(p);
+  if(p.born) return p.died ? (d? p.born+"–"+d : "* "+p.born+" †") : "* "+p.born;
+  return p.died ? "†"+(d?" "+d:"") : "";
+}
+function mapsLink(text,q,loc){
+  const a=document.createElement("a"); a.className="place"; a.textContent=text;
+  const enc=encodeURIComponent(q).replace(/%20/g,"+").replace(/%2C/g,",");
+  a.href=loc ? "https://www.google.com/maps/search/"+enc+"/@"+loc[0]+","+loc[1]+","+loc[2]+"z"
+             : "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(q);
+  a.target="_blank"; a.rel="noopener"; a.title="Otvori na Google Mapsu"; return a;
+}
+function renderPlaces(el,places){
+  el.textContent="";
+  (places||[]).forEach((x,i)=>{
+    if(i) { const ar=document.createElement("span"); ar.className="parr"; ar.textContent="→"; el.appendChild(ar); }
+    el.appendChild(mapsLink(x.p,x.p));
+    if(x.y){ const y=document.createElement("span"); y.className="py"; y.textContent=" ("+x.y+".)"; el.appendChild(y); }
+  });
+}
+// polje za godinu (broj); prazno + strelica gore/dolje počinje od 1950.
+function makeYearInput(cls,val,ph){
+  const e=document.createElement("input"); e.type="number"; e.className="ed "+cls; e.placeholder=ph;
+  e.min=YR_MIN; e.max=YR_MAX; e.step=1; e.value=yearDigits(val);
+  e.addEventListener("keydown",ev=>{ if(e.value===""&&(ev.key==="ArrowUp"||ev.key==="ArrowDown")){ ev.preventDefault(); e.value=1950; e.dispatchEvent(new Event("input",{bubbles:true})); } });
+  return e;
+}
+// rođen/a + umro/la (kvačica) + godina smrti. get() vraća {born,died} u pohranjenom obliku
+function makeYearPickers(p,onChange){
+  const wrap=document.createElement("div");
+  const row=document.createElement("div"); row.className="yrpick";
+  const born=makeYearInput("ed-b",p.born,"rođen/a (godina)"), died=makeYearInput("ed-d",deathYear(p),"umro/la (godina)");
+  row.appendChild(born); row.appendChild(died);
+  const lb=document.createElement("label"); lb.className="deadtick";
+  const cb=document.createElement("input"); cb.type="checkbox"; cb.checked=!!p.died;
+  lb.appendChild(cb); lb.appendChild(document.createTextNode(" umro/la (godina smrti može biti nepoznata)"));
+  const sync=()=>{ died.style.opacity=cb.checked?"":"0.5"; };
+  cb.addEventListener("change",()=>{ if(!cb.checked) died.value=""; sync(); onChange&&onChange(); });
+  died.addEventListener("input",()=>{ if(died.value!==""&&!cb.checked){ cb.checked=true; sync(); } });
+  [born,died].forEach(e=>e.addEventListener("input",()=>onChange&&onChange()));
+  sync();
+  wrap.appendChild(row); wrap.appendChild(lb);
+  return {el:wrap, born, died, cb,
+    get(){ const b=born.value.trim(), d=died.value.trim();
+      return {born:b?b+".":"", died:cb.checked?(d?d+".":"?"):""}; }};
+}
+// popis mjesta: svaki red = mjesto + neobavezna godina
+function makePlacesEditor(places,onChange){
+  const wrap=document.createElement("div");
+  const lbl=document.createElement("div"); lbl.className="af-lbl"; lbl.textContent="Mjesta (redom)"; wrap.appendChild(lbl);
+  const list=document.createElement("div"); wrap.appendChild(list);
+  const add=document.createElement("button"); add.type="button"; add.className="actbtn pladd"; add.textContent="+ mjesto"; wrap.appendChild(add);
+  function addRow(x){
+    const r=document.createElement("div"); r.className="plrow";
+    const t=document.createElement("input"); t.className="ed pl-p"; t.placeholder="mjesto (npr. Melina)"; t.value=(x&&x.p)||""; t.autocomplete="off";
+    const y=makeYearInput("pl-y",x&&x.y,"godina");
+    const rm=document.createElement("button"); rm.type="button"; rm.className="pl-x"; rm.title="Ukloni mjesto"; rm.textContent="×";
+    rm.addEventListener("click",()=>{ r.remove(); onChange&&onChange(); });
+    [t,y].forEach(e=>e.addEventListener("input",()=>onChange&&onChange()));
+    r.appendChild(t); r.appendChild(y); r.appendChild(rm); list.appendChild(r); return t;
+  }
+  (places||[]).forEach(addRow);
+  add.addEventListener("click",()=>{ addRow().focus(); });
+  return {el:wrap,
+    get(){ return [...list.children].map(r=>{ const p=r.querySelector(".pl-p").value.trim(), y=r.querySelector(".pl-y").value.trim(); return p?(y?{p,y}:{p}):null; }).filter(Boolean); }};
+}
+function setInfo(el,text){
+  el.textContent="";
+  const t=text||"—", hits=[];
+  PLACES.forEach(([re,q,la,lo,z])=>{
+    const g=new RegExp("(?<![\\p{L}])(?:"+re.source+")(?![\\p{L}])","gu"); let m;
+    while((m=g.exec(t))) hits.push({a:m.index,b:m.index+m[0].length,q,loc:[la,lo,z]});
+  });
+  hits.sort((x,y)=>x.a-y.a);
+  let pos=0;
+  hits.forEach(h=>{
+    if(h.a<pos) return;
+    if(h.a>pos) el.appendChild(document.createTextNode(t.slice(pos,h.a)));
+    el.appendChild(mapsLink(t.slice(h.a,h.b),h.q,h.loc)); pos=h.b;
+  });
+  if(pos<t.length) el.appendChild(document.createTextNode(t.slice(pos)));
+}
 function fillDetail(id){
   const p=persons[id]; if(!p) return;
   const d=document.getElementById("detail");
-  let years=""; if(p.born) years+="* "+p.born; if(p.died) years+=(years?"   ":"")+"† "+p.died;
-  d.innerHTML='<p class="dn"></p><p class="dy"></p><p class="di"></p>';
+  const years=yearsLine(p,"   ");
+  d.innerHTML='<p class="dn"></p><p class="dy"></p><p class="dpl"></p><p class="di"></p>';
   d.querySelector(".dn").textContent=p.n;
   d.querySelector(".dy").textContent=years||"godine nepoznate";
-  d.querySelector(".di").textContent=p.info||"—";
+  renderPlaces(d.querySelector(".dpl"),p.places);
+  setInfo(d.querySelector(".di"),p.info);
   decorateDetail(d,id);
 }
 function showPerson(id){
@@ -719,10 +844,10 @@ function showPerson(id){
   }));
   refreshSib();
   const d=document.getElementById("detail");
-  let years=""; if(p.born) years+="* "+p.born; if(p.died) years+=(years?"   ":"")+"† "+p.died;
+  const years=yearsLine(p,"   ");
   // popis odnosa ispod opisa: broj + lista imena (s godinama)
   const esc=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
-  const yrOf=nd=>{ const q=persons[nd.id]; let y=""; if(q.born)y="* "+q.born; if(q.died)y+=(y?"  ":"")+"† "+q.died; return y; };
+  const yrOf=nd=>yearsLine(persons[nd.id],"  ");
   const sec=(label,arr,tagFn,kind)=>{ if(!arr.length) return "";
     const items=arr.map(nd=>{ const y=yrOf(nd), tag=tagFn?tagFn(nd):"";
       return "<li data-id='"+esc(nd.id)+"'>"+esc(persons[nd.id].n)
@@ -734,10 +859,11 @@ function showPerson(id){
   const rel = sec("Roditelji",parentsOf,null,"parent")
             + sec("Supružnici",spousesOf,null,"spouse") + sec("Djeca",childrenOf,null,"child")
             + sec("Braća i sestre",siblingsOf, nd=> groupKey(nd.id)===selKey ? "" : "(polubrat/polusestra)");
-  d.innerHTML='<p class="dn"></p><p class="dy"></p><p class="di"></p>'+(rel?'<div class="relbox">'+rel+'</div>':'');
+  d.innerHTML='<p class="dn"></p><p class="dy"></p><p class="dpl"></p><p class="di"></p>'+(rel?'<div class="relbox">'+rel+'</div>':'');
   d.querySelector(".dn").textContent=p.n;
   d.querySelector(".dy").textContent=years||"godine nepoznate";
-  d.querySelector(".di").textContent=p.info||"—";
+  renderPlaces(d.querySelector(".dpl"),p.places);
+  setInfo(d.querySelector(".di"),p.info);
   decorateDetail(d,id);
 }
 
@@ -751,7 +877,7 @@ function build(){
     g.appendChild(el("circle",{class:"sheen",r:n.r*0.42,cx:-n.r*0.32,cy:-n.r*0.32,
                                fill:"#ffffff","fill-opacity":0.22}));
     g.appendChild(el("text",{class:"lbl",y:n.r+15},p.n));
-    const yline = p.born ? (p.died? p.born+"–"+p.died : "* "+p.born) : (p.died? "† "+p.died : "");
+    const yline = nodeYears(p);
     if(yline) g.appendChild(el("text",{class:"yr",y:n.r+29},yline));
     g.addEventListener("mousedown",ev=>startNodeDrag(ev,n));
     g.addEventListener("click",ev=>{ if(draggedMoved) return; if(window.__pickCb){ window.__pickCb(n.id); return; }
@@ -881,9 +1007,11 @@ function startAdd(d,id,rel,row){
   const p=persons[id];
   const titles={spouse:"Novi supružnik za: ",child:"Novo dijete od: ",parent:"Novi roditelj osobe: ",sibling:"Novi brat/sestra osobe: "};
   const box=document.createElement("div"); box.className="addform";
-  box.innerHTML='<div class="aft"></div><input class="ed af-n" placeholder="Ime i prezime" autocomplete="off"><div class="af-y"><input class="ed af-b" placeholder="rođen/a" autocomplete="off"><input class="ed af-d" placeholder="umro/la" autocomplete="off"></div><textarea class="ed af-i" placeholder="Opis"></textarea><div class="af-sel"></div><div class="af-m"></div><div class="af-btns"><button type="button" class="addbtn af-x">Odustani</button><button type="button" class="addbtn af-ok">Dodaj</button></div>';
+  box.innerHTML='<div class="aft"></div><input class="ed af-n" placeholder="Ime i prezime" autocomplete="off"><div class="af-yp"></div><div class="af-pl"></div><textarea class="ed af-i" placeholder="Opis"></textarea><div class="af-sel"></div><div class="af-m"></div><div class="af-btns"><button type="button" class="addbtn af-x">Odustani</button><button type="button" class="addbtn af-ok">Dodaj</button></div>';
   box.querySelector(".aft").textContent=titles[rel]+p.n;
   const msg=box.querySelector(".af-m");
+  const yp=makeYearPickers({}), plEd=makePlacesEditor([]);
+  box.querySelector(".af-yp").appendChild(yp.el); box.querySelector(".af-pl").appendChild(plEd.el);
   let chosen=defaultColor(id,rel);
   const colWrap=document.createElement("div");
   colWrap.innerHTML='<div class="af-lbl">Boja</div>';
@@ -911,12 +1039,14 @@ function startAdd(d,id,rel,row){
     const name=nameIn.value.trim();
     if(!name){ msg.style.color="#f0996b"; msg.textContent="Upiši ime."; nameIn.focus(); return; }
     ok.disabled=true; msg.style.color="var(--muted)"; msg.textContent="Spremam…";
-    const {data,error}=await sb.rpc("add_relative",{
+    const yv=yp.get(), pls=plEd.get();
+    const args={
       p_anchor:id, p_relation:rel, p_name:name,
-      p_born:box.querySelector(".af-b").value.trim()||null,
-      p_died:box.querySelector(".af-d").value.trim()||null,
+      p_born:yv.born||null, p_died:yv.died||null,
       p_info:box.querySelector(".af-i").value.trim()||null,
-      p_other_parent:(sel&&sel.value)||null, p_color:chosen });
+      p_other_parent:(sel&&sel.value)||null, p_color:chosen };
+    if(pls.length) args.p_places=pls;
+    const {data,error}=await sb.rpc("add_relative",args);
     if(error){ console.error(error); msg.style.color="#f0996b"; msg.textContent=error.message||"Greška pri spremanju."; ok.disabled=false; return; }
     try{ sessionStorage.setItem("afterAdd",JSON.stringify({id:data,s:view.s})); }catch(e){}
     location.reload();   // sve (generacije, veličine, boje, pretraga, 3D) se računa pri učitavanju
@@ -928,11 +1058,13 @@ function startAdd(d,id,rel,row){
 function startEdit(d,id){
   const p=persons[id], head=d.querySelector(".dn"), yr=d.querySelector(".dy"), di=d.querySelector(".di");
   const inp=(cls,val,ph)=>{ const e=document.createElement("input"); e.className="ed "+cls; e.value=val||""; e.placeholder=ph; return e; };
-  const name=inp("ed-n",p.n,"Ime"), born=inp("ed-b",p.born,"rođen/a"), died=inp("ed-d",p.died,"umro/la");
+  const name=inp("ed-n",p.n,"Ime");
+  const yp=makeYearPickers(p,()=>queue()), plEd=makePlacesEditor(p.places,()=>queue());
   const info=document.createElement("textarea"); info.className="ed ed-i"; info.value=p.info||""; info.placeholder="Opis";
   const stat=document.createElement("span"); stat.className="estat";
   head.textContent=""; head.appendChild(name);
-  yr.textContent=""; yr.classList.add("edyr"); yr.appendChild(born); yr.appendChild(died);
+  yr.textContent=""; yr.appendChild(yp.el);
+  { const pl=d.querySelector(".dpl"); if(pl){ pl.textContent=""; pl.appendChild(plEd.el); } }
   di.textContent=""; di.appendChild(info);
   let colPick=(p.color||"").toLowerCase(), sibTick=false;
   const sibIds=sameParentSiblings(id);
@@ -952,14 +1084,16 @@ function startEdit(d,id){
   colWrap.appendChild(gl);
   di.appendChild(colWrap);
   di.appendChild(stat);
-  let timer=null, last={n:p.n,born:p.born||"",died:p.died||"",info:p.info||"",color:colPick,sibs:false,glow:!!p.eldest};
-  const cur=()=>({n:name.value.trim(),born:born.value.trim(),died:died.value.trim(),info:info.value.trim(),color:colPick,sibs:sibTick,glow:glowOn});
+  let timer=null, last={n:p.n,born:p.born||"",died:p.died||"",info:p.info||"",places:p.places||[],color:colPick,sibs:false,glow:!!p.eldest};
+  const cur=()=>{ const yv=yp.get(); return {n:name.value.trim(),born:yv.born,died:yv.died,info:info.value.trim(),places:plEd.get(),color:colPick,sibs:sibTick,glow:glowOn}; };
   async function save(){
     clearTimeout(timer); timer=null;
     const v=cur(); if(!v.n){ stat.style.color="#f0996b"; stat.textContent="Ime ne smije biti prazno."; return false; }
-    if(v.n===last.n&&v.born===last.born&&v.died===last.died&&v.info===last.info&&v.color===last.color&&v.sibs===last.sibs&&v.glow===last.glow) return true;
+    if(v.n===last.n&&v.born===last.born&&v.died===last.died&&v.info===last.info&&JSON.stringify(v.places)===JSON.stringify(last.places)&&v.color===last.color&&v.sibs===last.sibs&&v.glow===last.glow) return true;
     stat.style.color="var(--muted)"; stat.textContent="Spremam…";
-    const {error}=await sb.from("persons").update({name:v.n,born:v.born||null,died:v.died||null,info:v.info||null,color:v.color||null,is_eldest:!!v.glow}).eq("id",id);
+    const upd={name:v.n,born:v.born||null,died:v.died||null,info:v.info||null,color:v.color||null,is_eldest:!!v.glow};
+    if(JSON.stringify(v.places)!==JSON.stringify(last.places)) upd.places=v.places.length?v.places:null;   // stupac places šalje se samo kad se mjesta mijenjaju
+    const {error}=await sb.from("persons").update(upd).eq("id",id);
     if(error){ console.error(error); stat.style.color="#f0996b"; stat.textContent="Greška pri spremanju."; return false; }
     if(v.sibs && v.color && sibIds.length){
       const {error:e2}=await sb.from("persons").update({color:v.color}).in("id",sibIds);
@@ -970,17 +1104,18 @@ function startEdit(d,id){
     if(v.glow) p.eldest=true; else delete p.eldest;
     { const g0=nodeById[id]&&nodeById[id].g; if(g0) g0.classList.toggle("eldest",!!v.glow); }
     p.n=v.n; if(v.born) p.born=v.born; else delete p.born; if(v.died) p.died=v.died; else delete p.died; if(v.info) p.info=v.info; else delete p.info;
+    if(v.places.length) p.places=v.places; else delete p.places;
     last=v; stat.style.color="#9ad6a0"; stat.textContent="Spremljeno ✓";
     const nd=nodeById[id]; if(nd&&nd.g){
       const lb=nd.g.querySelector(".lbl"); if(lb) lb.textContent=p.n;
-      const yl=p.born?(p.died?p.born+"–"+p.died:"* "+p.born):(p.died?"† "+p.died:"");
+      const yl=nodeYears(p);
       let ye=nd.g.querySelector(".yr");
       if(yl){ if(!ye){ ye=el("text",{class:"yr",y:nd.r+29}); nd.g.appendChild(ye); } ye.textContent=yl; } else if(ye) ye.remove();
     }
     return true;
   }
   const queue=()=>{ stat.style.color="var(--muted)"; stat.textContent="…"; clearTimeout(timer); timer=setTimeout(save,800); };
-  [name,born,died,info].forEach(e=>e.addEventListener("input",queue));
+  [name,info].forEach(e=>e.addEventListener("input",queue));
   name.focus();
   return async()=>{ if(await save()){ if(selected===id) showPerson(id); else fillDetail(id); } };   // poziva se gumbom „Potvrdi"
 }
@@ -1121,9 +1256,6 @@ svg.addEventListener("touchmove",e=>{
 },{passive:false});
 svg.addEventListener("touchend",e=>{ if(e.touches.length===0){ tMode=null; rootG.classList.remove("moving"); } });
 
-document.getElementById("zin").onclick=()=>{view.s=Math.min(3.5,view.s*1.15);apply();};
-document.getElementById("zout").onclick=()=>{view.s=Math.max(0.15,view.s/1.15);apply();};
-document.getElementById("zreset").onclick=fit;
 // „presloži" uklonjen — raspored je zaključan na DEFAULT_POS i nikad se ne mijenja automatski
 window.addEventListener("resize",fit);
 
@@ -1265,9 +1397,10 @@ document.getElementById("savepos").onclick=async function(){
   const wrap=document.getElementById("exportwrap"), menu=document.getElementById("exportmenu"), btn=document.getElementById("exportpos");
   const nameOf=id=>persons[id]?persons[id].n:"";
   const posOf=id=>DEFAULT_POS[id]||{};
+  const placesText=p=>(p.places||[]).map(x=>x.p+(x.y?" ("+x.y+".)":"")).join(" → ");
   const tables=()=>({
-    osobe:[["id","ime","rođen","umro","opis","x","y","najstariji"]].concat(Object.keys(persons).map(id=>{ const p=persons[id], q=posOf(id);
-      return [id,p.n||"",p.born||"",p.died||"",p.info||"",q.x==null?"":q.x,q.y==null?"":q.y,p.eldest?"da":""]; })),
+    osobe:[["id","ime","rođen","umro","mjesta","opis","x","y","najstariji"]].concat(Object.keys(persons).map(id=>{ const p=persons[id], q=posOf(id);
+      return [id,p.n||"",p.born||"",p.died||"",placesText(p),p.info||"",q.x==null?"":q.x,q.y==null?"":q.y,p.eldest?"da":""]; })),
     brakovi:[["osoba_a_id","osoba_a_ime","osoba_b_id","osoba_b_ime"]].concat(marriages.map(([a,b])=>[a,nameOf(a),b,nameOf(b)])),
     roditelj_dijete:[["roditelj_id","roditelj_ime","dijete_id","dijete_ime"]].concat(parents.map(([a,b])=>[a,nameOf(a),b,nameOf(b)]))
   });
@@ -1307,7 +1440,7 @@ document.getElementById("savepos").onclick=async function(){
     const t=tables(), base="obiteljsko-stablo-"+stamp();
     if(fmt==="json"){
       const out={
-        osobe:Object.keys(persons).map(id=>{ const p=persons[id], q=posOf(id); return {id,ime:p.n||"",rodjen:p.born||null,umro:p.died||null,opis:p.info||null,x:q.x==null?null:q.x,y:q.y==null?null:q.y,najstariji:!!p.eldest}; }),
+        osobe:Object.keys(persons).map(id=>{ const p=persons[id], q=posOf(id); return {id,ime:p.n||"",rodjen:p.born||null,umro:p.died||null,mjesta:p.places||null,opis:p.info||null,x:q.x==null?null:q.x,y:q.y==null?null:q.y,najstariji:!!p.eldest}; }),
         brakovi:marriages.map(([a,b])=>({osoba_a:a,osoba_a_ime:nameOf(a),osoba_b:b,osoba_b_ime:nameOf(b)})),
         roditelj_dijete:parents.map(([a,b])=>({roditelj:a,roditelj_ime:nameOf(a),dijete:b,dijete_ime:nameOf(b)}))
       };
